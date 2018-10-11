@@ -1,0 +1,649 @@
+\documentclass[a4paper]{article}
+
+\usepackage{itgspeech2010}    %% Include ITGSpeech2010 style
+\usepackage{times}            %% Choose Times Roman font
+%\usepackage[ngerman]{babel}
+\usepackage[english]{babel}
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorlinks,urlcolor=black,citecolor=black,linkcolor=black]{hyperref}
+
+\title{Conducting Psychoacoustic Experiments with the SoundScape Renderer}
+
+\author{Matthias Geier, Sascha Spors}
+
+\newcommand{\twoemailscombolink}[4][,]{\texttt{\{\href{mailto:#2#4}{#2}#1\href{mailto:#3#4}{#3}\}#4}}
+\newcommand{\threeemailscombolink}[5][,]{\texttt{\{\href{mailto:#2#5}{#2}#1\href{mailto:#3#5}{#3}#1\href{mailto:#4#5}{#4}\}#5}}
+
+\address{%
+Address: Quality \& Usability Lab, Deutsche Telekom Laboratories, TU-Berlin,
+Ernst-Reuter-Platz 7,
+10587 Berlin\\
+%E-Mail: \texttt{\{matthias.geier,sascha.spors\}@telekom.de}\\
+%E-Mail: \twoemailscombolink{matthias.geier}{sascha.spors}{@telekom.de}\\
+E-Mail: \threeemailscombolink{matthias.geier}{sascha.spors}{SoundScapeRenderer}{@telekom.de}\\
+Web: \url{http://qu.tu-berlin.de}}
+
+%\usepackage[nooneline,FIGTOPCAP,tight,sf,SF]{subfigure}
+%\usepackage[tight,SF]{subfigure}
+\usepackage[tight]{subfigure}
+\setlength{\subfigbottomskip}{0pt}
+\setlength{\subfigtopskip}{0pt}
+%\setlength{\subfiglabelskip}{0pt}
+
+\usepackage{emp}
+\empaddtoTeX{%
+\usepackage{times}
+%\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+%\usepackage{textcomp}
+\newcommand{\fontnormal}{\normalfont\footnotesize\sffamily}
+\newcommand{\fontsmall}{\normalfont\scriptsize\sffamily\itshape}
+}
+
+\ifpdf
+% allow MPS files with extensions .1, .2, ... from metapost (via emp.sty)
+\DeclareGraphicsRule{*}{mps}{*}{}
+\fi
+
+\usepackage{balance}
+
+\begin{document}
+
+% Block Diagrams: <<<
+\begin{empfile}[emp/blockdiagrams]
+\begin{empcmds}
+  input boxes;
+  u := 4mm;
+  dotsize := 2pt;
+  pair vspace; vspace := (0,u);
+  pair hspace; hspace := (u,0);
+  pair smallvspace; smallvspace := (0,.5u);
+  pair smallhspace; smallhspace := (.5u,0);
+  ahlength := 3.5bp; % length of arrow head (default 4 bp)
+
+vardef arrowhead expr p =
+  save q,e; path q; pair e;
+  e = point length p of p;
+  q = gobble(p shifted -e cutafter makepath(pencircle scaled 2ahlength))
+  cuttings;
+  (q rotated .5ahangle & reverse q rotated -.5ahangle -- (point .25 of q) --
+  cycle)  shifted e
+enddef;
+def drawdotarrow expr p =
+  draw point 0 of p withpen pencircle scaled dotsize;
+  drawarrow p
+enddef;
+
+verbatimtex
+% arguments to \genfrac: opening delimiter, closing del., width of line, style
+% style: 0 \displaystyle, 1 \textstyle, 2 \scriptstyle, 3 \scriptscriptstyle
+% long story short: to change the size, change the number!
+\newcommand{\twolines}[2]{$\genfrac{}{}{0pt}{1}{\text{\itshape#1}}{\text{\itshape#2}}$}
+etex
+
+  verbatimtex \fontnormal etex;
+\end{empcmds}
+\begin{empdef}[wfs](0,0)
+%boxit.in(btex  $\displaystyle \text{source}\atop\displaystyle\text{signal}$
+%etex);
+%boxit.in(btex  $\text{source}\atop\text{signal}$ etex);
+boxit.in(btex \twolines{source}{signal} etex);
+boxit.filter(btex Filter etex);
+
+boxit.delay(btex \smash[b]{Delay} etex);
+boxjoin(a.e + hspace = b.w);
+boxit.weight(btex \smash[b]{Weight} etex);
+circleit.plus(btex $+$ etex);
+boxit.ls(btex \fontsmall loudspeaker etex);
+
+boxjoin();
+
+%boxit.other_ls(btex  $\text{other}\atop\text{loudspeakers}$ etex);
+%boxit.other_ls(btex  $\genfrac{}{}{0pt}{2}{\text{other}}{\text{loudspeakers}}$
+%etex);
+boxit.otherls(btex \twolines{other}{loudspeakers} etex);
+
+boxjoin(a.e = b.w);
+boxit.distance(btex \twolines{source-loudspeaker}{distance} etex);
+boxit.incidence(btex \twolines{angle of}{incidence} etex);
+boxjoin();
+
+%boxit.distance(btex \fontsmall distance etex);
+%boxit.sourcepos(btex \twolines{source}{position} etex);
+%boxit.lsposition(btex \twolines{loudspeaker}{position} etex);
+
+boxit.othersources(btex \twolines{other}{sources} etex);
+
+in.e + hspace = filter.w;
+filter.e + 2hspace = delay.w;
+delay.e + hspace = weight.w;
+
+xpart otherls.c = xpart .5[filter.e,delay.w];
+ypart otherls.n = ypart (filter.s - vspace);
+
+%distance.e = incidence.w;
+
+%xpart distance.c = xpart delay.c;
+xpart .5[distance.c,incidence.c] = xpart .5[delay.c,weight.c];
+%xpart distance.c = xpart delay.c;
+ypart distance.s = ypart (delay.n + vspace);
+
+%ypart sourcepos.s = ypart lsposition.s = ypart (distance.n + vspace);
+%xpart (sourcepos.w - .5hspace) = xpart distance.c;
+%xpart (lsposition.e + .5hspace) = xpart distance.c;
+
+othersources.n + vspace = plus.s;
+
+% ATTENTION: order of the drawing commands matters!
+drawunboxed(in);
+drawboxed(filter,delay,weight,plus);
+drawunboxed(otherls,ls,distance,incidence,othersources);
+%drawunboxed(sourcepos,lsposition);
+
+drawarrow in.e -- filter.w;
+drawarrow filter.e -- delay.w;
+drawdotarrow .5[filter.e,delay.w] -- otherls.n;
+
+drawarrow delay.e -- weight.w;
+drawarrow weight.e -- plus.w;
+drawarrow plus.e -- ls.w;
+
+drawarrow distance.s -- delay.n;
+drawarrow distance.s --weight.n;
+%drawarrow sourcepos.s -- distance.n;
+%drawarrow lsposition.s -- distance.n;
+
+drawarrow incidence.s -- weight.n;
+
+drawarrow othersources.n -- plus.s;
+
+\end{empdef}
+
+\begin{empdef}[binaural2](0,0)
+
+boxit.in(btex \twolines{source}{signal} etex);
+boxit.weight(btex \smash[b]{Weight} etex);
+boxit.distance(btex \twolines{source-listener}{distance} etex);
+boxit.filterone(btex Filter etex);
+boxit.filtertwo(btex Filter etex);
+boxit.incidence(btex \twolines{angle of}{incidence} etex);
+boxit.headphones(btex \twolines{head-}{phones} etex);
+
+circleit.plusone(btex $+$ etex);
+circleit.plustwo(btex $+$ etex);
+
+boxit.othersourcesone(btex \twolines{other}{sources} etex);
+boxit.othersourcestwo(btex \twolines{other}{sources} etex);
+
+in.e + hspace = weight.w;
+weight.n + vspace = distance.s;
+
+z1 = weight.e + hspace;
+
+filterone.s - vspace = filtertwo.n;
+x1 + xpart hspace = xpart filterone.w = xpart filtertwo.w;
+y1 = ypart .5[filterone.s,filtertwo.n];
+
+x1 = x2 = x3;
+y2 = ypart filterone.c;
+y3 = ypart filtertwo.c;
+
+incidence.s = filterone.n + vspace;
+
+filterone.e + hspace = plusone.w;
+filtertwo.e + hspace = plustwo.w;
+
+othersourcesone.s - vspace = plusone.n;
+othersourcestwo.n + vspace = plustwo.s;
+
+xpart headphones.w = xpart (plusone.e);
+ypart headphones.w = y1;
+
+drawunboxed(in);
+drawboxed(weight,filterone,filtertwo,plusone,plustwo);
+drawunboxed(distance,headphones,incidence,othersourcesone,othersourcestwo);
+
+drawarrow in.e--weight.w;
+drawarrow distance.s--weight.n;
+drawarrow weight.e--z1--z2--filterone.w;
+drawdotarrow z1--z3--filtertwo.w;
+drawarrow filterone.e -- plusone.w;
+drawarrow filtertwo.e -- plustwo.w;
+drawarrow plusone.e -- plusone.e + hspace;
+drawarrow plustwo.e -- plustwo.e + hspace;
+drawarrow othersourcesone.s -- plusone.n;
+drawarrow othersourcestwo.n -- plustwo.s;
+
+pair oo;
+oo = .5smallhspace;
+drawarrow incidence.s-oo--filterone.n-oo;
+path secondarrow;
+secondarrow = incidence.s+oo--filtertwo.n+oo;
+draw secondarrow cutafter reverse bpath.filterone;
+drawarrow secondarrow cutbefore bpath.filterone;
+
+\end{empdef}
+
+\begin{empdef}[vbap2](0,0)
+
+boxit.in(btex \twolines{source}{signal} etex);
+boxit.weight(btex \smash[b]{Weight} etex);
+boxit.distance(btex \twolines{source-loudspeaker}{distance} etex);
+boxit.weightone(btex \smash[b]{Weight} etex);
+boxit.weighttwo(btex \smash[b]{Weight} etex);
+boxit.incidence(btex \twolines{angle of}{incidence} etex);
+boxit.ls(btex \twolines{pair of}{loudspeakers} etex);
+
+circleit.plusone(btex $+$ etex);
+circleit.plustwo(btex $+$ etex);
+
+boxit.othersourcesone(btex \twolines{other}{sources} etex);
+boxit.othersourcestwo(btex \twolines{other}{sources} etex);
+
+in.e + hspace = weight.w;
+weight.n + vspace = distance.s;
+
+z1 = weight.e + hspace;
+
+weightone.s - vspace = weighttwo.n;
+x1 + xpart hspace = xpart weightone.w = xpart weighttwo.w;
+y1 = ypart .5[weightone.s,weighttwo.n];
+
+x1 = x2 = x3;
+y2 = ypart weightone.c;
+y3 = ypart weighttwo.c;
+
+incidence.s = weightone.n + vspace;
+
+weightone.e + hspace = plusone.w;
+weighttwo.e + hspace = plustwo.w;
+
+othersourcesone.s - vspace = plusone.n;
+othersourcestwo.n + vspace = plustwo.s;
+
+xpart ls.w = xpart (plusone.e);
+ypart ls.w = y1;
+
+drawunboxed(in);
+drawboxed(weight,weightone,weighttwo,plusone,plustwo);
+drawunboxed(distance,ls,incidence,othersourcesone,othersourcestwo);
+
+drawarrow in.e--weight.w;
+drawarrow distance.s--weight.n;
+drawarrow weight.e--z1--z2--weightone.w;
+drawdotarrow z1--z3--weighttwo.w;
+
+drawarrow weightone.e -- plusone.w;
+drawarrow weighttwo.e -- plustwo.w;
+drawarrow plusone.e -- plusone.e + hspace;
+drawarrow plustwo.e -- plustwo.e + hspace;
+drawarrow othersourcesone.s -- plusone.n;
+drawarrow othersourcestwo.n -- plustwo.s;
+
+pair oo;
+oo = .5smallhspace;
+drawarrow incidence.s-oo--weightone.n-oo;
+path secondarrow;
+secondarrow = incidence.s+oo--weighttwo.n+oo;
+draw secondarrow cutafter reverse bpath.weightone;
+drawarrow secondarrow cutbefore bpath.weightone;
+
+\end{empdef}
+
+\begin{empdef}[aap](0,0)
+boxit.in(btex \twolines{source}{signal} etex);
+
+boxjoin(a.e + hspace = b.w);
+boxit.weight(btex \smash[b]{Weight} etex);
+circleit.plus(btex $+$ etex);
+boxit.ls(btex \fontsmall loudspeaker etex);
+
+boxjoin();
+
+boxit.otherls(btex \twolines{other}{loudspeakers} etex);
+
+boxjoin(a.e = b.w);
+boxit.distance(btex \twolines{source-loudspeaker}{distance} etex);
+boxit.incidence(btex \twolines{angle of}{incidence} etex);
+boxjoin();
+
+boxit.othersources(btex \twolines{other}{sources} etex);
+
+in.e + 2hspace = weight.w;
+
+xpart otherls.c = xpart .5[in.e,weight.w];
+ypart otherls.n = ypart (weight.s - vspace);
+
+xpart .5[distance.c,incidence.c] = xpart weight.c;
+ypart distance.s = ypart (weight.n + vspace);
+
+othersources.n + vspace = plus.s;
+
+% ATTENTION: order of the drawing commands matters!
+drawunboxed(in);
+drawboxed(weight,plus);
+drawunboxed(otherls,ls,distance,incidence,othersources);
+
+drawarrow in.e -- weight.w;
+drawdotarrow .5[in.e,weight.w] -- otherls.n;
+
+drawarrow weight.e -- plus.w;
+drawarrow plus.e -- ls.w;
+
+drawarrow distance.s --weight.n;
+
+drawarrow incidence.s -- weight.n;
+
+drawarrow othersources.n -- plus.s;
+
+\end{empdef}
+
+\end{empfile}
+% On-the-fly metapost compilation:
+\immediate\write18{cd emp && mpost --tex=latex blockdiagrams}
+% >>>
+
+\maketitle
+
+\begin{abstract}
+The \emph{SoundScape Renderer} (SSR) is a versatile software tool for
+real-time spatial audio reproduction. It is capable of generating driving
+signals for a variety of loudspeaker-based and headphone-based reproduction
+methods.
+Due to its extensive remote-control possibilities, it can be conveniently used
+as an audio backend in psychoacoustic listening and conversational
+experiments, for example in the area of spatial telephone conferencing.
+
+The main features of the software are described and some aspects about its
+architecture are presented. Different possibilities are shown how the SSR has
+already been
+used for conducting subjective tests.
+
+The \emph{SoundScape Renderer}
+%is \emph{Free and Open Source Software} and
+can be downloaded from \url{http://tu-berlin.de/?id=ssr}
+as \emph{Free and Open Source Software}.
+\end{abstract}
+
+\section{Motivation}
+
+In comparison to traditional speech and audio listening tests, subjective
+experiments in the context of spatial audio communication put higher demands on
+the test setup. In addition to temporal and timbral attributes, also spatial
+attributes have to be presented, controlled and analyzed.
+
+For loudspeaker-based tests, the driving signal for each loudspeaker has to be
+calculated in real-time if the sound sources' positions or other parameters
+shall be changed interactively during the experiment.
+One problem of using loudspeakers for listening tests is the exact placement of
+the test subject withing the listening area and the controlled transition
+between listening positions.
+To achieve reproducible test conditions, often headphone-based reproduction is
+chosen. The spatial impression is most natural when head-tracking is used to
+compensate the test subject's head movements. This presentation
+method -- which is commonly used for tests in the area of spatial telephone
+conferencing -- is called \emph{dynamic binaural \mbox{(re-)}synthesis}.
+Because of the necessity to compensate head movements, it is not possible to use
+pre-computed audio files for playback and the output signals have to be
+generated in real-time.
+Additionally, in some adaptive test methods, the signals change dynamically
+depending on the test subject's choices.
+
+As a means of interaction between the test subject and the test setup often
+specialized \emph{Graphical User Interfaces} (GUIs) are needed to realize
+certain test methodologies.
+For implementation and maintenance it is normally much easier to use separate
+programs for the presentation of the audio stimuli and for displaying the test
+GUI.
+Both programs have to share a common interface to exchange control data, for
+example via network sockets.
+
+In the following sections a framework for spatial audio experiments is presented
+which is able to cope with all aforementioned requirements.
+
+\section{Technical Details}
+
+The \emph{SoundScape Renderer} (SSR)~\cite{Geier2008SSR} is a tool for
+\emph{object-based}
+audio reproduction, i.e.\ input signals are
+represented as sound objects with a given position in space and several other
+parameters. The information for all sound objects is
+stored in a so-called \emph{scene description}. Based on this scene description
+the output channel signals of the desired reproduction system are generated in
+real-time.
+
+The SSR is written in C++ and compiled with the GNU compiler.
+It is running on Linux and with some effort it can also be installed on
+Mac~OS~X.
+
+\subsection{Reproduction Methods}
+
+The SSR is not limited to a single reproduction method or hardware setup.
+Some of the available rendering modules are:
+
+\begin{itemize}
+\item loudspeaker-based:
+\begin{itemize}
+\item \emph{Wave Field Synthesis} (WFS)~\cite{Spors2008wfs}
+\item \emph{Vector Base Amplitude Panning} (VBAP)~\cite{Pulkki97Virtual}
+\item \emph{Ambisonic Amplitude Panning} (AAP)~\cite{Neukom2007}
+\end{itemize}
+\item headphone-based:
+\begin{itemize}
+\item \emph{HRTF-based Binaural Renderer}
+\item \emph{Binaural Room Synthesis} (BRS)
+\item \emph{Binaural Playback Renderer} (BPB)
+\end{itemize}
+\end{itemize}
+
+\noindent When using the HRTF-based renderer, all sources share the same set of
+\emph{Head Related Impulse Responses} (HRIRs) which are typically measured in a
+dry, non-reverberant environment.
+The BRS renderer uses \emph{Binaural Room Impulse Responses} (BRIRs) which
+contain room information specific to the position where they were measured.
+Therefore, each source needs its own set of BRIRs and the source positions
+cannot be changed in the SSR.
+
+The BPB renderer is not calculating the headphone signals in real-time but is
+rather an audio file player with head-tracking capabilities.
+Binaural signals for each head rotation in steps of one degree have to be
+generated beforehand, the BPB renderer merely selects the appropriate channels
+depending on the head orientation and does a crossfade if the orientation
+changes.
+This is useful for investigating algorithms for which no
+real-time implementation exists, for example for rapidly moving sources.
+The BPB renderer is still in development and not yet included in the public
+release of the SSR.
+
+\begin{figure}[tb]
+\begin{center}
+\subfigure[Binaural Rendering]{\empuse{binaural2}\label{fig:binaural}}\\[\baselineskip]
+\subfigure[Wave Field Synthesis]{\empuse{wfs}\label{fig:wfs}}\\[\baselineskip]
+\subfigure[Vector Base Amplitude Panning]{\empuse{vbap2}\label{fig:vbap}}\\[\baselineskip]
+\subfigure[Ambisonic Amplitude Panning]{\empuse{aap}\label{fig:aap}}
+\end{center}
+\caption{Signal flow in different rendering modules}
+\end{figure}
+
+\subsection{Signal Processing}
+
+All renderers are realized as a combination of a few basic processing units:
+filtering (partitioned convolution), delay line and weighting.
+
+The BRS and HRTF renderers -- figure~\ref{fig:binaural} -- are implemented
+by convolving the input signal with impulse
+responses corresponding to the left and right ear, dynamically chosen from a
+database of impulse responses depending on the source angle with respect to the
+listener position and
+the head orientation of the listener. Before that, the source signal is
+weighted with a value depending on its position to simulate distance
+attenuation.
+
+The WFS renderer -- figure~\ref{fig:wfs} -- is implemented by applying the
+same pre-filtering
+step to all input channels and then -- individually for each combination of
+source and loudspeaker channel -- delaying and weighting the resulting signals
+depending on the relative position and orientation of source and loudspeaker.
+
+When using the VBAP renderer -- figure~\ref{fig:vbap} -- only two loudspeakers
+are active for each sound source. A panning function is used to calculate the
+weights of the two loudspeakers. Another weighting factor is applied to both
+loudspeakers to account for the distance attenuation.
+
+The AAP renderer -- figure~\ref{fig:aap} -- uses the principles of
+\emph{Higher Order Ambisonics} (HOA) to calculate a panning function which
+potentially employs all loudspeakers to reproduce one source.
+
+All renderers use the same renderer base class with a straightforward interface
+which makes it simple to implement new renderers.
+It also provides parallel processing capabilities, which can be utilized by all
+renderers.
+
+\subsection{Audio Input/Output}
+
+The \emph{JACK Audio Connection Kit} (JACK) is utilized for input and output of
+audio data.
+This allows for a great flexibility in routing between different audio
+processing applications and the hardware ports.
+Any audio application with JACK support as well as the physical inputs
+of the sound card(s) can be used to provide the input
+signals.
+The SSR has been used with loudspeaker setups with up to 192 channels.
+
+\subsection{Control}
+
+The SSR can be controlled in different ways. On the one hand, it has a
+built-in \emph{Graphical User Interface} (GUI) by means of which sound sources
+can be moved around and their volume and other parameters can be changed
+interactively.
+In experimental setups, however, the built-in GUI is mostly in the background or
+entirely deactivated.
+
+On the other hand, there is a network interface to which a control application
+can connect via a TCP/IP socket.
+This socket interface has already been used by several GUIs written in
+\emph{Python}, two GUIs written in \emph{ActionScript}, two GUIs written in
+\emph{Matlab}, a remote-control created with \emph{Pure Data}, a GUI running on
+a mobile phone with \emph{Android OS} and an \emph{iPhone} application.
+Over its network interface, the SSR sends and receives text messages in a simple
+XML format. This way the network messages can be extended in a very flexible way
+and the network traffic can be analyzed easily in case of problems.
+
+\begin{figure}[tb]
+\begin{center}
+%\includegraphics[scale=0.5]{screenshot14}
+\includegraphics[width=\columnwidth]{screenshot14}
+\end{center}
+\caption{Screenshot of the test GUI from~\cite{geier2010:perceptual}, created
+with \emph{Python}, \emph{GTK+} and \emph{glade}.}
+\label{fig:RGTscreenshot}
+\end{figure}
+
+\section{Previous Experiments and Setups}
+
+The modular architecture of the SSR allows its use in many different setups.
+It has already been used in about a dozen psychoacoustic experiments.
+Most of them were using headphone-based reproduction, but also experiments with
+loudspeaker arrays have been conducted.
+
+Binaural synthesis has been realized using \emph{Head Related Impulse Responses}
+(HRIRs) measured in non-reverberant rooms as well as \emph{Binaural Room
+Impulse Responses} (BRIRs) measured in more or less reverberant rooms.
+The BRS renderer was also used with BRIRs calculated in \emph{Matlab} to render
+virtual loudspeaker setups.
+
+Audio playback was either done by the SSR or by an audio player created using \emph{Pure Data} (a.k.a.\ Pd). 
+All components were connected by means of the JACK audio server.
+In most experiments GUIs written in \emph{Python} were used to control the
+SSR and Pd, but also GUIs written in \emph{Matlab} were used.
+
+%The SSR was constantly rendering
+%several sound sources by means of several pre-calculated BRIR sets.
+%When the test subject changed the test condition in the GUI, Pd was changing the
+%output channel which was connected to the SSR and thereby changing the currently
+%active pair of BRIRs.
+
+%The GUI has to communicate with the player
+%application to start and stop playback at the desired times and with the SSR to
+%select different conditions or change some reproduction parameters.
+
+In the following paragraphs a few experiments using the SSR are briefly
+presented and the test setup is explained.
+
+A spatial telephone conference listening test has been conducted in
+\cite{raake2010:listening} where recordings of three participants were played
+back using Pd and the BRS renderer of the SSR was used to generate test
+conditions as combination of different spatial presentation modes and different
+telephone bandwidths. For each condition a BRIR set was calculated using
+\emph{Matlab}. A GUI written in \emph{Python} was used to select the current
+condition and start the playback.
+
+An experiment about binaural monitoring of WFS systems has been done
+in~\cite{Geier09:DAGA}. The same audio scene was presented using three different
+methods: A real WFS system, a ``virtual'' WFS system simulated using the BRS
+renderer with BRIR measurements of the real loudspeakers and a binaural rendering
+using dry HRTFs. All three conditions were realized using the SSR and the
+switching was done manually by the experimenter.
+
+In \cite{geier2010:perceptual}, the perception of focused sources in WFS
+has been evaluated. A ``virtual'' WFS system has been realized using the BRS
+renderer. For each stimulus a BRIR set has been generated in \emph{Matlab}.
+Figure~\ref{fig:RGTscreenshot} shows the GUI which was presented to the test
+subjects.
+
+A very similar setup was used in an experiment about the role of the precedence
+effect for the perception of artifacts in WFS~\cite{wierstorf_precedence_2010}.
+Again, \emph{Matlab} was used to generate BRIR sets to create a ``virtual'' WFS
+system with the BRS renderer and head-tracked headphones.
+
+The perceptual relevance of using fractional delays and of errors regarding
+loudspeaker placement in WFS was investigated
+in~\cite{ahrens2010:perceptual}. Except different BRIR sets, a different test
+method and a different GUI, the test setup was very similar to the previously
+mentioned experiment.
+
+In addition to the aforementioned research papers, the SSR was also used in
+several diploma theses.
+In this context a perceptual comparison of WFS and HOA was done -- again using a
+``virtual'' loudspeaker setup -- using the BRS renderer. Both the GUI and the
+audio file playback was done in \emph{Matlab}.
+
+Another diploma thesis was proposing different panning techniques for rapidly
+moving sources in WFS. A listening test was done using the \emph{Binaural
+Playback} (BPB) renderer. Audio playback was done by the SSR and a GUI written
+in \emph{Python} was used to mute and un-mute stimuli according to the test
+subject's selections.
+
+\section{Conclusions and Future Work}
+
+The \emph{SoundScape Renderer} (SSR) is a versatile tool for spatial audio
+reproduction which is freely available as \emph{Open Source Software}.
+It can be used in psychoacoustic experiments in the context of spatial audio
+reproduction and transmission.
+It can be connected to a variety of control applications using its network
+socket interface.
+
+Future plans include the implementation of
+\emph{OpenDAFF}~\cite{wefers2010:opendaff} support for directional impulse
+responses (\url{http://www.opendaff.org}) and the definition of a common scene
+format for control and interchange of spatial audio scenes between different
+reproduction systems.
+
+Visit \url{http://tu-berlin.de/?id=ssr}
+to get your own copy of the SSR
+and feel free to contact
+\href{mailto:SoundScapeRenderer@telekom.de}
+{\texttt{SoundScapeRenderer@telekom.de}}
+if you have questions or suggestions.
+Any comments are greatly appreciated!
+
+\balance
+
+\bibliographystyle{unsrt}
+\bibliography{itgspeech2010_SSR}
+
+\end{document}
+
+% vim:textwidth=80

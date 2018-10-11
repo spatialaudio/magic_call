@@ -1,0 +1,32 @@
+\documentclass{article}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\pgfplotsset{every axis/.append style={
+axis lines=center,
+xlabel=x,
+ylabel=y,
+xtick=\empty,
+ytick=\empty,
+xlabel style=right,
+}}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[label style=green]
+\addplot plot coordinates{(1,1)};
+\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+\begin{axis}[xlabel style=below,ylabel style={at=(current axis.west),left}]
+\addplot plot coordinates{(1,1)};
+\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+\begin{axis}[
+xlabel style={yshift=1cm,rotate=45},
+ylabel style={anchor=south east,scale=1.5}]
+\addplot plot coordinates{(1,1)};
+\end{axis}
+\end{tikzpicture}
+\end{document}

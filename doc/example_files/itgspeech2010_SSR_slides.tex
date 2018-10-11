@@ -1,0 +1,650 @@
+\documentclass{beamer}
+%\documentclass[trans]{beamer}
+\usetheme{qu}
+
+\title{Conducting Psychoacoustic Experiments\\
+with the \emph{SoundScape Renderer}}
+
+\author{Matthias Geier \and Sascha Spors}
+\emaillink{SoundScapeRenderer@telekom.de}
+
+\date[ITG speech 2010]{ITG Fachtagung Speech Communication\\
+October 8\textsuperscript{th}, 2010}
+
+\usepackage{tikz}
+\usetikzlibrary{chains,positioning,calc}
+
+\graphicspath{{images/}}
+
+\begin{document}
+
+\maketitle
+
+\section{SSR}
+
+\subsection{Features}
+
+\begin{frame}{The SoundScape Renderer (SSR).}
+%\tikz[remember picture,overlay] \node[anchor=north east,scale=.8]
+%at (current page.north east) {\includegraphics{ssr_logo}};
+\begin{itemize}
+\item software tool for \emph{object-based} real-time spatial audio reproduction
+\item several different \hyperlink{reproductionmethods}{reproduction methods}
+\begin{itemize}
+\item for headphone-based and loudspeaker-based systems
+\end{itemize}
+\item can be used as audio back-end for experiments
+\end{itemize}
+
+\pause
+
+\begin{itemize}
+\item runs on Linux
+\begin{itemize}
+\item port to Mac OS X planned
+\end{itemize}
+\item uses the \emph{Jack Audio Connection Kit} (JACK)
+\item Free and Open Source Software (GPL license)
+\item \url{http://tu-berlin.de/?id=ssr}
+%\item \texttt{\insertemail}
+\end{itemize}
+\end{frame}
+
+\subsection{GUI}
+
+{
+\setbeamertemplate{background canvas}
+[vertical shading][top=TeleWeiss,middle=TeleGrau1,bottom=TeleWeiss]
+%\setbeamercolor{lower separation line head}{bg=TeleSchwarz}
+
+\setbeamertemplate{background}{%
+\begin{tikzpicture}[remember picture, overlay]
+\node[anchor=north east,yshift=-0.3cm] at (current page.north east)
+{\includegraphics[scale=.26]{screenshot_wfs}};
+\node[anchor=south west] at (current page.south west)
+{\includegraphics[scale=.26]{screenshot_binaural}};
+\end{tikzpicture}
+}
+\leftlogo{}\author{}\title{}
+\begin{frame}
+\frametitle{\hspace{-.3333em}\tikz[baseline=(x.base)] \node[fill=white,fill opacity=.6,text opacity=1,text depth=0pt] (x) {The SoundScape Renderer (SSR).};}
+\framesubtitle{Graphical User Interface.}
+% no frame text
+\end{frame}
+}
+
+\subsection{Network Interface}
+
+\begin{frame}[fragile]{The SoundScape Renderer (SSR).}{Network Interface.}
+\begin{itemize}
+\item several TCP/IP connections at once are possible
+\item you can use your favorite tools to connect:
+\begin{itemize}
+\item Python, Matlab, Pure Data, Flash/ActionScript, Ruby, Tcl/Tk, Java, \dots
+\item example implementations available
+\end{itemize}
+\end{itemize}
+
+\pause
+
+\begin{itemize}
+\item example network message:
+\footnotesize
+\begin{semiverbatim}
+<request>
+  <source id="4" volume="-6">
+    <position x="1.5" y="1"/>
+  </source>
+  <source id="7" mute="true"/>
+</request>\grau\\0
+\end{semiverbatim}
+\end{itemize}
+\end{frame}
+
+\section{Rendering Modules}
+
+\begin{frame}{The SoundScape Renderer (SSR).}{Modular Architecture.}
+\label<2>{reproductionmethods}
+\begin{columns}[t]
+\column{.3\textwidth}	
+\textbf{DSP Blocks:}
+\begin{itemize}
+\item Delay
+\item Filter (partitioned convolution)
+\item Weight
+\end{itemize}
+\column<2->{.55\textwidth}	
+\textbf{Rendering Modules:}
+\begin{itemize}
+\item \hyperlink{binaural}{Binaural Renderer}
+\item \hyperlink{wfs}{Wave Field Synthesis (WFS)}
+\item \hyperlink{vbap}{Vector Base Amplitude Panning (VBAP)}
+\item \hyperlink{aap}{Ambisonic Amplitude Panning (AAP)}
+\item \hyperlink{brs}{Binaural Room Synthesis (BRS)}
+\item \hyperlink{generic}{Generic Renderer}
+\item \hyperlink{bpb}{Binaural Playback Renderer (BPB)}
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% TikZ settings for all pictures:
+\newcommand{\distance}{1.2em}
+\newcommand{\paralleldistance}{.7ex}
+\tikzset{>=stealth} % nice arrow heads
+\tikzstyle{box}=[draw,rectangle,font=\sffamily,text depth=0pt]
+%\tikzstyle{every node}+=[fill=yellow]
+%\tikzstyle{every node}+=[semithick]
+\tikzstyle{nobox}=[font=\em\sffamily,inner sep=.3ex]
+\tikzstyle{round}=[circle,draw,inner sep=0pt]
+\tikzstyle{point}=[circle,draw,fill,inner sep=0pt,minimum size=4\pgflinewidth]
+\tikzstyle{arrow}=[draw,->,shorten >=\pgflinewidth]
+\tikzstyle{every join}+=[arrow]
+\tikzstyle{every edge}+=[arrow]
+\tikzstyle{chainjoin}=[on chain, join]
+\tikzstyle{noarrowchainjoin}=[on chain,join={by -,shorten >=0pt}]
+\tikzstyle{fork}=[{grow=east,sibling distance=\distance,level distance=\distance,edge from parent path=[arrow](\tikzparentnode\tikzparentanchor) |- (\tikzchildnode\tikzchildanchor)}]
+\tikzset{node distance=\distance and \distance}
+
+% arguments to \genfrac: opening delimiter, closing del., width of line, style
+% style: 0 \displaystyle, 1 \textstyle, 2 \scriptstyle, 3 \scriptscriptstyle
+% long story short: to change the size, change the optional argument!
+\newcommand{\twolines}[3][1]{$\genfrac{}{}{0pt}{#1}
+{\text{\vphantom{Xg}#2}}{\text{\vphantom{Xg}#3}}$}
+
+\newcommand{\clipnode}[1]{%
+% 'even odd rule' must be active!
+% TODO maybe something like that is already defined?
+\clip
+(#1.south west) rectangle (#1.north east)
+(current bounding box.south west) rectangle (current bounding box.north east);}
+
+\subsection{Binaural}
+
+\begin{frame}{Binaural Renderer.}
+\label<3>{binaural}
+
+\begin{center}
+\begin{tikzpicture}[start chain,even odd rule]
+\node[nobox,chainjoin] {\twolines{source}{signal}};
+\node[box,chainjoin]   (weight)  {Weight};
+\path[fork] node[point,noarrowchainjoin] {}
+child {node [box,anchor=north west] (filterR) {Filter}}
+child {node [box,anchor=south west] (filterL) {Filter}};
+
+\chainin (filterL);
+\node[round,chainjoin] (plusL) {$+$};
+\coordinate[chainjoin] (endL);
+
+\chainin (filterR);
+\node[round,chainjoin] (plusR) {$+$};
+\coordinate[chainjoin] (endR);
+
+% place the headphones node midway between endR and endL
+\path (endR) -- node[nobox,xshift=.6em] {\twolines{head-}{phones}} (endL);
+
+\pause
+
+\node[nobox,above=of weight]  {\twolines{source--listener}{distance}}
+  edge (weight);
+\node[nobox,above=of filterL] (angle of incidence)
+  {\twolines{angle of}{incidence}};
+
+\begin{scope} % for clipping
+\clipnode{filterL}
+\path let
+\p1=(angle of incidence.south),
+\p2=(\x1-.5*\paralleldistance,\y1),\p3=(\x1+.5*\paralleldistance,\y1) in
+(\p2) edge (\p2 |- filterL.north)
+(\p3) edge (\p3 |- filterR.north);
+\end{scope}
+
+\pause
+
+\node[nobox,above=of plusL] {\twolines{other}{sources}} edge (plusL);
+\node[nobox,below=of plusR] {\twolines{other}{sources}} edge (plusR);
+\end{tikzpicture}
+\end{center}
+
+\onslide
+\begin{itemize}
+\item one set of \emph{head-related impulse responses} (HRIRs)
+\item typically non-reverberant
+\item with head tracking
+\end{itemize}
+
+\end{frame}
+
+\subsection{BRS}
+
+\begin{frame}{Binaural Room Synthesis Renderer (BRS).}
+\label<3>{brs}
+
+\begin{center}
+\begin{tikzpicture}[start chain,even odd rule]
+\node[nobox,chainjoin] {\twolines{source}{signal}};
+\path[fork] node[point,noarrowchainjoin] {}
+child {node [box,anchor=north west] (filterR) {Filter}}
+child {node [box,anchor=south west] (filterL) {Filter}};
+
+\chainin (filterL);
+\node[round,chainjoin] (plusL) {$+$};
+\coordinate[chainjoin] (endL);
+
+\chainin (filterR);
+\node[round,chainjoin] (plusR) {$+$};
+\coordinate[chainjoin] (endR);
+
+% place the headphones node midway between endR and endL
+\path (endR) -- node[nobox,xshift=.6em] {\twolines{head-}{phones}} (endL);
+
+\pause
+
+\node[nobox,above=of filterL] (head rotation)
+  {\twolines{head}{rotation}};
+
+\begin{scope} % for clipping
+\clipnode{filterL}
+\path let
+\p1=(head rotation.south),
+\p2=(\x1-.5*\paralleldistance,\y1),\p3=(\x1+.5*\paralleldistance,\y1) in
+(\p2) edge (\p2 |- filterL.north)
+(\p3) edge (\p3 |- filterR.north);
+\end{scope}
+
+\pause
+
+\node[nobox,above=of plusL] {\twolines{other}{sources}} edge (plusL);
+\node[nobox,below=of plusR] {\twolines{other}{sources}} edge (plusR);
+\end{tikzpicture}
+\end{center}
+
+\onslide
+\begin{itemize}
+\item each source uses its own set of \emph{binaural room impulse responses}
+	(BRIRs)
+\begin{itemize}
+\item measurements of real rooms and real loudspeakers
+\item simulation of virtual loudspeaker setups
+\end{itemize}
+\item source position is implicitly contained in BRIRs
+\item with head tracking
+\end{itemize}
+
+\end{frame}
+
+\subsection{WFS}
+
+\begin{frame}{Wave Field Synthesis Renderer (WFS).}
+\label<3>{wfs}
+
+\begin{center}
+\begin{tikzpicture}[start chain,remember picture]
+\node[nobox,chainjoin] {\twolines{source}{signal}};
+\node[box,chainjoin]   (filter)  {Filter};
+\node[point,noarrowchainjoin] (point) {};
+
+\node[box,chainjoin]   (delay)   {Delay};
+\node[box,chainjoin]   (weight)  {Weight};
+\node[round,chainjoin] (plus) {$+$};
+\node[nobox,chainjoin] {\twolines{loud-}{speaker}};
+
+\pause
+
+\node[nobox,above=of delay,xshift=-1ex] {\twolines{source--loudspeaker}{distance}}
+  edge (delay) edge (weight);
+\node[nobox,above=of weight,xshift=1ex] {\twolines{angle of}{incidence}}
+  edge (weight);
+
+\pause
+
+\chainin (point);
+\node[nobox,on chain=going below,join] {\twolines{other}{loudspeakers}};
+
+\node[nobox,below=of plus] {\twolines{other}{sources}} edge (plus);
+\end{tikzpicture}
+\end{center}
+
+\onslide
+\begin{itemize}
+\item driving function is split up into three parts
+\item pre-filter to compensate source type mismatch
+	($2\frac{1}{2}$-dimensional reproduction)
+\item only one filter per source, efficient implementation
+\item arbitrary concave loudspeaker setups can be used
+\item sources can be placed in front of loudspeakers (= focused sources)
+\end{itemize}
+
+\end{frame}
+
+\subsection{Generic}
+
+\begin{frame}{Generic Renderer.}
+\label<2>{generic}
+
+\begin{center}
+\begin{tikzpicture}[start chain]
+\node[nobox,chainjoin] {\twolines{source}{signal}};
+\node[point,noarrowchainjoin] (point) {};
+\node[box,chainjoin]   (filter) {Filter};
+\node[round,chainjoin] (plus) {$+$};
+\node[nobox,chainjoin] {\twolines{loud-}{speaker}};
+
+\pause
+
+\chainin (point);
+\node[nobox,on chain=going below,join] {\twolines{other}{loudspeakers}};
+
+\node[nobox,below=of plus] {\twolines{other}{sources}} edge (plus);
+\end{tikzpicture}
+\end{center}
+
+\onslide
+\begin{itemize}
+\item one filter for each combination of source and loudspeaker
+\item implicitly contained in the filters:
+\begin{itemize}
+\item source position
+\item loudspeaker position
+\item reproduction method
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\subsection{BPB}
+
+\begin{frame}{Binaural Playback Renderer (BPB).}
+\label<3>{bpb}
+
+\begin{center}
+\begin{tikzpicture}[start chain,even odd rule]
+\node[box,chainjoin] (playerL) {Player};
+\node[round,chainjoin] (plusL) {$+$};
+\coordinate[chainjoin] (endL);
+
+\node [box,below=of playerL] (playerR) {Player};
+\chainin (playerR);
+\node[round,chainjoin] (plusR) {$+$};
+\coordinate[chainjoin] (endR);
+
+% place the headphones node midway between endR and endL
+\path (endR) -- node[nobox,xshift=.6em] {\twolines{head-}{phones}} (endL);
+
+\pause
+
+\node[nobox,above=of playerL] (head rotation)
+  {\twolines{head}{rotation}};
+
+\begin{scope} % for clipping
+\clipnode{playerL}
+\path let
+\p1=(head rotation.south),
+\p2=(\x1-.5*\paralleldistance,\y1),\p3=(\x1+.5*\paralleldistance,\y1) in
+(\p2) edge (\p2 |- playerL.north)
+(\p3) edge (\p3 |- playerR.north);
+\end{scope}
+
+\pause
+
+\node[nobox,above=of plusL] {\twolines{other}{sources}} edge (plusL);
+\node[nobox,below=of plusR] {\twolines{other}{sources}} edge (plusR);
+\end{tikzpicture}
+\end{center}
+
+\onslide
+\begin{itemize}
+\item for a one degree resolution, 720-channel sound files are necessary
+%\item no block processing artifacts
+\item especially useful for:
+\begin{itemize}
+\item rapidly moving sources
+\item algorithms without real-time implementation
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\section{Experiment Design}
+
+\begin{frame}{Experiment Design.}{Make it modular!}
+\begin{itemize}
+\item modules
+\begin{itemize}
+\item user interface (computer screen, keyboard, MIDI-controller, \dots)
+\item file player (optional)
+\item spatial renderer (SSR)
+\item network interface to connect everything
+\end{itemize}
+\end{itemize}
+
+\begin{itemize}
+\item offline tasks
+\begin{itemize}
+\item generate lists of stimuli and conditions
+\item analyze and visualize the results
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\subsection{GUI}
+
+{
+\setbeamertemplate{background canvas}
+[vertical shading][top=TeleWeiss,middle=TeleGrau1,bottom=TeleWeiss]
+%\setbeamercolor{lower separation line head}{bg=TeleSchwarz}
+\author{}\title{}
+
+\begin{frame}{Test GUI (example).}
+\vspace{\logomargin}
+\noleftmargin\hspace{\logomargin}\includegraphics[scale=.46]{screenshot_rating}
+\begin{tikzpicture}[remember picture,overlay]
+\node[yshift=-3mm,anchor=north east,inner sep=\logomargin] at (current page.north east)
+{\includegraphics[scale=.46]{screenshot14}};
+\end{tikzpicture}
+\end{frame}
+}
+
+\subsection{Setup}
+
+\begin{frame}{Test Setup (example).}
+\tikzstyle{big box}=[box,minimum height=3em,minimum width=4em]
+\tikzstyle{arrow label}=[font=\tiny,inner sep=.1em]
+\begin{center}
+\begin{tikzpicture}
+\uncover<2->{\node[big box] (player) {Player};}
+\node[big box,right=4em of player] (ssr) {SSR};
+\node[nobox,right=of ssr] (headphones) {\twolines{head-}{phones}};
+
+\path \foreach \m in {-.5*\paralleldistance,.5*\paralleldistance}
+{
+  ([yshift=\m]ssr.east) edge ([yshift=\m]headphones.west)
+};
+
+\node[nobox,above=of ssr] {\twolines{head}{tracker}} edge (ssr);
+
+\node[big box,anchor=north,yshift=-2em] at ($(player.south)!.5!(ssr.south)$)
+(gui) {GUI};
+\alt<1>{
+\path (gui) edge[out=70,in=-110] node[arrow label,auto=right]
+{TCP/IP} (ssr);}{
+\path (gui) edge[dashed,out=70,in=-110] node[arrow label,auto=right]
+{TCP/IP} (ssr);}
+
+\uncover<2->{
+\path (gui) edge[out=110,in=-70] node[arrow label,auto=left] {TCP/IP}
+(player);
+\path let \n1=7 in
+\foreach \k in {1,...,\n1}
+{
+let \n2={(\n1/2+0.5-\k)*\paralleldistance} in
+([yshift=\n2]player.east) edge ([yshift=\n2]ssr.west)
+};
+\path (player.north east) -- node[arrow label]{audio channels} (ssr.north west);
+}
+
+\node[nobox,left=of gui] {\twolines{list of}{stimuli}} edge (gui);
+\node[nobox,right=of gui] (logfile) {\twolines{log}{file}};
+\path (gui) edge (logfile);
+\end{tikzpicture}
+\end{center}
+\end{frame}
+
+\section{~} % empty (but clickable) title for summary
+
+\begin{frame}{Summary.}
+\begin{columns}[t]
+\column{.4\textwidth}
+%\begin{itemize}
+%\item modular test design
+\textbf{Modular Test Design}
+\begin{itemize}
+\item user interface
+\item spatial renderer
+\item audio file player
+\item connected by network
+\end{itemize}
+%\end{itemize}
+
+\column{.5\textwidth}
+%\begin{itemize}
+%\item SoundScape Renderer
+\textbf{SoundScape Renderer}
+\begin{itemize}
+\item object-based paradigm
+\item many rendering methods/algorithms
+\begin{itemize}
+\item for headphones and loudspeakers
+\end{itemize}
+\item remote control by network interface
+\item freely available (GPL)
+\end{itemize}
+%\end{itemize}
+\end{columns}
+\end{frame}
+
+{
+\setbeamertemplate{headline}{}
+\begin{frame}[b]
+\setbeamercolor{thanks}{bg=TeleGrau6}
+\centerline{%
+\begin{beamercolorbox}[wd=.5\paperwidth,sep=3mm,center,rounded=true]{thanks}
+  Thank you very much for your attention!\\
+  \alert{Questions?}
+\end{beamercolorbox}}
+
+\vspace{2\baselineskip}
+%\vfill
+
+\begin{center}
+Download: \url{http://tu-berlin.de/?id=ssr}\\
+e-Mail: \texttt{\insertemail}\\
+Blog: \url{http://audio.qu.tu-berlin.de}
+\end{center}
+
+\vspace{\baselineskip}
+\end{frame}
+}
+
+\appendix
+
+\section{Appendix:}
+
+\frame{\centerline{Appendix}}
+
+\section{More Renderers}
+
+\subsection{VBAP}
+
+\begin{frame}{Vector Base Amplitude Panning Renderer (VBAP).}
+\label<3>{vbap}
+
+\begin{center}
+\begin{tikzpicture}[start chain,even odd rule]
+\node[nobox,chainjoin] {\twolines{source}{signal}};
+\node[box,chainjoin]   (weight)  {Weight};
+\path[fork] node[point,noarrowchainjoin] {}
+child {node [box,anchor=north west] (weightR) {Weight}}
+child {node [box,anchor=south west] (weightL) {Weight}};
+
+\chainin (weightL);
+\node[round,chainjoin] (plusL) {$+$};
+\coordinate[chainjoin] (endL);
+
+\chainin (weightR);
+\node[round,chainjoin] (plusR) {$+$};
+\coordinate[chainjoin] (endR);
+
+% place the output node midway between endR and endL
+\path (endR) -- node[nobox,xshift=1em] {\twolines{pair of}{loudspeakers}} (endL);
+
+\pause
+
+\node[nobox,above=of weight] {\twolines{source--loudspeaker}{distance}}
+  edge (weight);
+\node[nobox,above=of weightL] (angle of incidence)
+  {\twolines{angle of}{incidence}};
+
+\begin{scope} % for clipping
+\clipnode{weightL}
+\path let
+\p1=(angle of incidence.south),
+\p2=(\x1-.5*\paralleldistance,\y1),\p3=(\x1+.5*\paralleldistance,\y1) in
+(\p2) edge (\p2 |- weightL.north)
+(\p3) edge (\p3 |- weightR.north);
+\end{scope}
+
+\pause
+
+\node[nobox,above=of plusL] {\twolines{other}{sources}} edge (plusL);
+\node[nobox,below=of plusR] {\twolines{other}{sources}} edge (plusR);
+\end{tikzpicture}
+\end{center}
+
+\onslide
+\begin{itemize}
+\item panning function between closest loudspeaker pair
+\begin{itemize}
+\item only two loudspeakers are active for each source
+\end{itemize}
+\item no time delay
+\end{itemize}
+
+\end{frame}
+
+\subsection{AAP}
+
+\begin{frame}{Ambisonic Amplitude Panning Renderer (AAP).}
+\label<3>{aap}
+
+\begin{center}
+\begin{tikzpicture}[start chain]
+\node[nobox,chainjoin] {\twolines{source}{signal}};
+\node[point,noarrowchainjoin] (point) {};
+\node[box,chainjoin]   (weight)  {Weight};
+\node[round,chainjoin] (plus) {$+$};
+\node[nobox,chainjoin] {\twolines{loud-}{speaker}};
+
+\pause
+
+\node[nobox,above=of weight,anchor=south east] {\twolines{source--loudspeaker}{distance}}
+  edge (weight);
+\node[nobox,above=of weight,anchor=south west] {\twolines{angle of}{incidence}}
+  edge (weight);
+
+\pause
+
+\chainin (point);
+\node[nobox,on chain=going below,join] {\twolines{other}{loudspeakers}};
+
+\node[nobox,below=of plus] {\twolines{other}{sources}} edge (plus);
+\end{tikzpicture}
+\end{center}
+
+\onslide
+\begin{itemize}
+\item panning function for potentially all loudspeakers
+\end{itemize}
+
+\end{frame}
+
+\end{document}

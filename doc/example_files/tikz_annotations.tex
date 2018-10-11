@@ -1,0 +1,23 @@
+\documentclass{article}
+\usepackage{mathpazo}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+\pgftext{%
+\includegraphics[width=\textwidth]{TUB-Logo-blau}%
+}%
+\node[fill=black, opacity=.5, text opacity=1] (annotation) at (-2.4,3)
+{\Large \color{yellow} Annotation};
+
+\draw (annotation.south west) -- ++(-1,-1);
+
+%\coordinate[at = 1in of annotation.west] (pathStart);
+%\draw[->] (pathStart) -- ++(7,4);
+
+\tikzstyle{every node}=[circle,fill=white,anchor=center,inner sep=1.2pt]
+\draw (-2,-3) node {$a^{-1}$};
+\draw (1.5,3.5) node {\textbf{2}2};
+
+\end{tikzpicture}
+\end{document}
+

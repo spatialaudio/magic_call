@@ -1,0 +1,526 @@
+\documentclass{beamer}
+%\documentclass[trans]{beamer}
+
+\usetheme[tub,nosubsections]{qu}
+
+\title{An Open-Source C\texttt{++} Framework for Multithreaded Realtime
+Multichannel Audio Applications}
+
+\author{%
+Matthias Geier\inst{1} \and Torben Hohn\inst{2} \and Sascha Spors\inst{1}}
+
+\institute{\inst{1}%
+Quality and Usability Lab\\
+Telekom Innovation Laboratories\\
+Technische Universit\"at Berlin
+\and\inst{2}%
+Linutronix GmbH}
+
+\date[LAC 2012]{Linux Audio Conference\\
+April 15\textsuperscript{th}, 2012}
+
+\subject{Linux Audio Conference (LAC) 2012}
+\keywords{MIMO, realtime, multithreading, C\texttt{++}}
+
+\graphicspath{{images/}}
+
+\usepackage{listings}
+
+\newcommand{\code}{\texttt}
+
+\newcommand{\distance}{1.2em}
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc}
+
+\tikzset{>=stealth} % nice arrow heads
+\tikzstyle{box}=[draw,rectangle,font=\sffamily]
+\tikzstyle{nobox}=[font=\em\sffamily,inner sep=.3ex]
+\tikzstyle{round}=[circle,draw,inner sep=0pt]
+\tikzstyle{point}=[circle,draw,fill,inner sep=0pt,minimum size=4\pgflinewidth]
+\tikzstyle{arrow}=[draw,->,shorten >=\pgflinewidth]
+\tikzstyle{noarrow}=[draw,-,shorten >=0pt]
+
+\tikzstyle{every edge}+=[arrow]
+
+\tikzstyle{fork}=[{
+grow'=east,
+anchor=west,
+child anchor=west,
+%parent anchor=east,
+%sibling distance=\distance,
+level distance=\distance,
+edge from parent path=[arrow](\tikzparentnode\tikzparentanchor) |- (\tikzchildnode\tikzchildanchor)}]
+
+\tikzset{node distance=\distance and \distance}
+
+\begin{document}
+
+% 25 - 30 minutes
+
+\maketitle
+
+\begin{frame}{APF}{Audio Processing Framework}
+
+\begin{itemize}
+\item collection of C\texttt{++} code
+\item \url{http://tu-berlin.de/?id=apf}
+\item open source, GPLv3
+\item mostly platform-independent
+\begin{itemize}
+\item tested on Linux and MacOSX
+\end{itemize}
+\item quite generic
+\item heavy use of templates
+\item mostly header-only
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{APF Components}
+\begin{itemize}
+\item \code{MimoProcessor} {\color{TUBblue}$\to$ \emph{topic of this talk!}}
+\end{itemize}
+
+\begin{itemize}
+\item biquad \& cascade of biquads (IIR filter)
+\begin{itemize}
+\item several methods for denormal prevention
+\end{itemize}
+\item (yet another) C\texttt{++} wrapper for JACK
+\item iterators
+\item other tools
+\end{itemize}
+
+\begin{itemize}
+\item delay line {\color{TUBblue}$\to$ \emph{coming soon!}}
+\item partitioned convolution (FIR filter) {\color{TUBblue}$\to$ \emph{coming soon!}}
+\end{itemize}
+\end{frame}
+
+\section{\code{MimoProcessor}}
+
+\begin{frame}{\code{MimoProcessor}}{Target Applications}
+\begin{itemize}
+\item block-based audio applications
+\item many inputs/outputs
+\item both realtime and non-realtime
+\item interactive applications
+\end{itemize}
+\vfill
+\pause
+example application areas:
+\begin{itemize}
+\item sound field synthesis
+\item multichannel echo cancelling
+\item beamforming
+\end{itemize}
+\end{frame}
+
+\def\fork#1{
+\path[fork] node[point] (fork#1) {}
+[sibling distance=4.5ex,every child node/.style=box]
+child foreach \number in {1,...,4} {node (h-#1-\number) {$h_{#1,\number}(t)$}}
+node [left=of fork#1,nobox] (input#1) {input #1} edge[noarrow] (fork#1);
+}
+
+\section{Example}
+
+\begin{frame}{\code{MimoProcessor} Example Application}{Generic MIMO system}
+
+\def\shift{-19ex}
+
+\begin{center}
+\begin{tikzpicture}
+\footnotesize
+
+\fork{1}
+
+\begin{scope}[yshift=\shift]
+\fork{2}
+\end{scope}
+
+\foreach \n in {1,...,4}
+{
+\node [node distance=3*\distance,right=of h-1-\n,yshift=.5*\shift,round] (plus-\n) {+};
+\node [right=of plus-\n,nobox] (output-\n) {output \n};
+\path (h-1-\n.east) edge (plus-\n);
+\path (h-2-\n.east) edge (plus-\n);
+\path (plus-\n) edge (output-\n);
+}
+
+\end{tikzpicture}
+\end{center}
+\end{frame}
+
+\section{Features}
+
+\begin{frame}{\code{MimoProcessor} Features}
+\begin{itemize}
+\item different audio backends (realtime and non-realtime)
+\begin{itemize}
+\item \emph{JACK}
+\item \emph{Pure Data} {\color{TUBblue}(and \emph{Max/MSP})} external using \emph{flext}
+\item \emph{MEX}-file for \emph{octave} {\color{TUBblue}(and \emph{Matlab})}
+\item read/write multichannel audio files
+\item \emph{PortAudio} {\color{TUBblue}$\to$ \emph{coming soon!}}
+\item \dots and users can provide their own backends!
+\end{itemize}
+\pause
+\item ``automatic'' multithreading
+\item optional crossfade
+\item dynamic number of inputs/outputs
+  {\color{TUBblue}(if supported by the audio backend)}
+\item safe communication between realtime and non-realtime threads
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Realtime \& Non-Realtime Threads}
+\begin{itemize}
+\item realtime thread:
+\begin{itemize}
+\item audio callback function
+\item limited computation time per audio block
+\item blocking functions are \alert{forbidden}, e.g.
+\begin{itemize}
+\item allocating/deallocating memory
+\item reading/writing files/sockets
+\item creating/joining threads
+\item waiting for mutexes
+\item \dots
+\end{itemize}
+\end{itemize}
+\pause
+\vfill
+\item non-realtime thread:
+\begin{itemize}
+\item GUI, network, reading/writing files
+\item everything else
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{MimoProcessor Components}
+\begin{itemize}[<+->]
+\item \code{LockFreeFifo<Command*>}
+\begin{itemize}[<.->]
+\item \code{push()}, \code{pop()}
+\end{itemize}
+\item \code{CommandQueue}
+\begin{itemize}[<.->]
+\item using $2\times$ \code{LockFreeFifo}
+\item \code{push()}/\code{wait()}, \code{process\_commands()}
+\end{itemize}
+\item \code{Command}
+\begin{itemize}[<.->]
+\item abstract base class
+\item \code{execute()}, \code{cleanup()}
+\end{itemize}
+%\item \code{SharedData<T>}
+%\begin{itemize}[<.->]
+%\item getter/setter, using \code{CommandQueue}
+%\end{itemize}
+\item \code{RtList<Item*>}
+\begin{itemize}[<.->]
+\item using \code{CommandQueue}
+\item \code{add()}/\code{rem()}, \code{begin()}/\code{end()}/\code{size()}
+\end{itemize}
+\item \code{Item}
+\begin{itemize}[<.->]
+\item abstract base class
+\item \code{process()}
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{MimoProcessor Components}
+\begin{itemize}
+\item \code{MimoProcessor<Derived,} \emph{policies see below} \code{>}
+\pause
+\begin{itemize}
+\item \code{interface\_policy}
+\begin{itemize}
+\item \code{jack\_policy}
+\item \code{pointer\_policy}
+\end{itemize}
+\pause
+\item \code{thread\_policy}
+\begin{itemize}
+\item \code{posix\_thread\_policy}
+\end{itemize}
+\pause
+\item \code{sync\_policy}
+\begin{itemize}
+\item \code{posix\_sync\_policy}
+\end{itemize}
+\pause
+\item \code{xfade\_policy}
+\begin{itemize}
+\item \code{raised\_cosine\_policy} (default)
+\item \code{disable\_xfade}
+\end{itemize}
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\section{Code, yay!}
+
+\lstset{language=[ISO]C++}
+\lstset{basicstyle=\scriptsize\ttfamily} 
+\lstset{commentstyle=\itshape\color{TUBblue}}
+\lstset{keywordstyle=\bfseries\color{TUBred}}
+\lstset{basewidth=0.54em}
+%\lstset{numbers=left,numberstyle=\tiny\color{TUBdarkgray},numbersep=1ex}
+
+\begin{frame}[fragile=singleslide]{Code Example}
+{\code{examples/jack\_minimal.cpp}}
+% includes and MyProcessor class definition
+\lstinputlisting[firstline=26,lastline=47]{jack_minimal.cpp}
+\end{frame}
+
+\begin{frame}[fragile=singleslide,t]
+% MyProcessor::Output implementation
+\lstinputlisting[firstline=49,lastline=72]{jack_minimal.cpp}
+\end{frame}
+
+\begin{frame}[fragile=singleslide,t]
+% MyProcessor constructor and main()
+\lstinputlisting[firstline=74,lastline=95]{jack_minimal.cpp}
+\end{frame}
+
+\section{Parallel Processing}
+
+\begin{frame}{Parallel Processing}
+\begin{itemize}[<+->]
+\item \code{RtList<Item*>}: list of polymorphic base class pointers
+\item virtual function \code{Item::process()}
+\item items within one list are processed in parallel
+\item fixed number of threads, specified by user
+\item simple scheduling:
+\begin{itemize}
+\item<.-> each of the $N$ threads gets every $N$-th item
+\end{itemize}
+\item one ``main audio thread'', $N-1$ ``worker threads''
+\begin{itemize}
+\item<.-> communication via semaphores
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\section{X-Fade}
+
+\begin{frame}{Crossfade}
+\begin{itemize}
+\item block-based processing
+\item parameter changes only at block boundaries
+\item artifacts due to discontinuities
+\item can be reduced by crossfade
+\end{itemize}
+\pause
+
+\begin{itemize}
+\item each block is processed twice
+\begin{enumerate}
+\item with previous parameters, fade out
+\item with current parameters, fade in
+\end{enumerate}
+\item but: only if something actually changes
+\begin{itemize}
+\item as noticed by \code{CommandQueue}
+\end{itemize}
+\item crossfade is optional
+\begin{itemize}
+\item can be switched off at compile time
+\begin{itemize}
+\item \code{MimoProcessor<\dots, disable\_xfade>}
+\end{itemize}
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\section{Example}
+
+\begin{frame}{Example}{Near-Field-Compensated Higher Order Ambisonics}
+\begin{itemize}
+\item implementation of a realtime NFC-HOA renderer
+\item circular loudspeaker array (2.5D)
+\item $M$-th order ($2\times M + 1$ loudspeakers)
+\pause
+\item stages of the algorithm (in \texttt{RtList}s):
+\begin{description}[$N\times (M+1)$~]
+\pause
+\item[$N$~] sources/inputs
+\pause
+\item[$N\times (M+1)$~] IIR filters
+\pause
+\item[$M+1$~] objects which add contributions of sources per order
+\begin{itemize}
+\item multiplication with 2 complex weighting factors
+\item resulting in $2\times M + 1$ values (per audio sample)
+\end{itemize}
+\pause
+\item[block size~] IFFTs {\color{TUBblue}(of length $2\times M + 1$)}
+\pause
+\item[$2\times M + 1$~] outputs
+\end{description}
+\pause
+\item part of the SSR {\color{TUBblue}$\to$ \emph{coming soon!}}
+\begin{itemize}
+\item What is the SSR? {\color{TUBblue}$\to$ see next page}
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\section{SSR}
+
+\begin{frame}{The SoundScape Renderer (SSR)}
+\begin{itemize}
+\item software tool for \emph{object-based} realtime spatial audio reproduction
+\item several different reproduction methods
+\begin{itemize}
+\item Binaural Renderer
+\item Binaural Room Synthesis (BRS)
+\item Wave Field Synthesis (WFS)
+\item Vector Base Amplitude Panning (VBAP)
+\item Ambisonic Amplitude Panning (AAP)
+\item Generic Renderer
+\item Binaural Playback Renderer (BPB)
+\item NFC-HOA Renderer {\color{TUBblue}$\to$ \emph{coming soon!}}
+\end{itemize}
+\end{itemize}
+
+\pause
+
+\begin{itemize}
+\item runs on Linux and Mac OSX
+\item uses the \emph{Jack Audio Connection Kit} (JACK)
+\item graphical user interface (Qt) and network interface (TCP/IP)
+\item Free and Open Source Software (GPLv3)
+\item \url{http://tu-berlin.de/?ssr}
+\end{itemize}
+\end{frame}
+
+{
+\setbeamertemplate{background canvas}
+[vertical shading][top=white,middle=TUBdarkgray,bottom=white]
+\setbeamertemplate{background}{%
+\begin{tikzpicture}[remember picture, overlay]
+\node[anchor=north east,yshift=-0.5cm] at (current page.north east)
+{\includegraphics[scale=.27]{mozart_full_muted_wfs}};
+\node[anchor=south west] at (current page.south west)
+{\includegraphics[scale=.27]{mozart_full_muted_binaural}};
+\end{tikzpicture}
+}
+\leftlogo{}\author{}\title{}
+\begin{frame}
+\frametitle{\hspace{-.3333em}\tikz[baseline=(x.base)] \node[fill=white,fill opacity=.6,text opacity=1,text depth=0pt] (x) {The SoundScape Renderer (SSR).};}
+\framesubtitle{Graphical User Interface.}
+% no frame text
+\end{frame}
+}
+
+\section{Conclusion}
+
+\begin{frame}{Important Notes}
+
+\begin{itemize}
+\item compile with optimization!
+\begin{itemize}
+\item e.g. \code{g++ -O3}
+\end{itemize}
+\end{itemize}
+\pause
+
+\begin{itemize}
+\item be aware of cache effects!
+\begin{itemize}
+\item memory locality
+\item false sharing
+\end{itemize}
+\item look for bottlenecks with a profiler!
+\begin{itemize}
+\item OProfile, gprof, \dots
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Conclusion}
+
+\begin{itemize}
+\item goal of \code{MimoProcessor}: to be \dots
+\begin{itemize}
+\item unobtrusive
+\item easy to use
+\item re-usable in different contexts
+\item easily extensible (e.g. by policy-based design)
+\end{itemize}
+\end{itemize}
+\pause
+
+\begin{itemize}
+\item parallelization: simple yet effective
+\begin{itemize}
+\item trade-off between effort {\color{TUBblue}(to use, to implement)} and performance
+\item significant gain in performance, e.g. for HOA renderer
+\end{itemize}
+\end{itemize}
+\pause
+
+\begin{itemize}
+\item unit tests are included
+\begin{itemize}
+\item using the \emph{CATCH} framework
+\end{itemize}
+\item well documented
+\begin{itemize}
+\item \emph{Doxygen} documentation also available at the website
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Future Work}
+\begin{itemize}
+\item Audio Processing Framework (APF)
+\begin{itemize}
+\item include delay line and partitioned convolution
+\item implement \emph{PortAudio} policy
+\end{itemize}
+\end{itemize}
+
+\begin{itemize}
+\item SoundScape Renderer (SSR)
+\begin{itemize}
+\item re-write core using the \code{MimoProcessor}
+\item port all existing renderers
+\item include the brand-new NFC-HOA renderer
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\section{~}
+
+{
+% don't count last frame and don't show frame number
+\setbeamercolor{page number in head/foot}{fg=page number in head/foot.bg}
+\addtocounter{framenumber}{-1}
+\begin{frame}[b]
+\setbeamercolor{thanks}{bg=TUBgray}
+\centerline{%
+\begin{beamercolorbox}[wd=.6\paperwidth,sep=3mm,center,rounded=true]{thanks}
+Thank you very much for your attention!\\
+\alert{Questions?}
+\end{beamercolorbox}}
+\vspace{2\baselineskip}
+\begin{center}
+Website: \url{http://tu-berlin.de/?apf}\\
+%e-Mail: \texttt{\insertemail}\\
+Blog: \url{http://audio.qu.tu-berlin.de}
+\end{center}
+\vspace{\baselineskip}
+\end{frame}
+}
+
+%\appendix
+
+\end{document}

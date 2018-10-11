@@ -1,0 +1,65 @@
+\documentclass[
+tikz,
+%dvisvgm,
+%border=0pt,  % default 0pt
+]{standalone}
+
+% Fix "standalone" for LuaTeX 0.85+, see https://tex.stackexchange.com/a/314429/
+\ifdefined\pdfpagewidth
+\else
+  \let\pdfpagewidth\pagewidth
+  \let\pdfpageheight\pageheight
+\fi
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.15}
+
+%\pgfplotsset{width=5cm}
+
+%\tikzstyle
+%\pgfplotset
+%\addplot+
+
+\begin{document}
+
+\begin{tikzpicture}
+\begin{axis}
+\addplot table {
+0.         0.
+0.12973761 0.16180758
+0.36443149 0.35568513
+0.68658892 0.5728863
+1.0787172  0.80466472
+1.52332362 1.04227405
+2.00291545 1.27696793
+2.5        1.5
+2.99708455 1.70262391
+3.47667638 1.87609329
+3.9212828  2.01166181
+4.31341108 2.10058309
+4.63556851 2.13411079
+4.87026239 2.10349854
+5.         2.
+};
+
+\addplot table {
+5.         2.
+5.05247813 1.85750729
+5.0728863  1.71720117
+5.06997085 1.58126822
+5.05247813 1.45189504
+5.02915452 1.33126822
+5.00874636 1.22157434
+5.         1.125
+5.01166181 1.04373178
+5.05247813 0.97995627
+5.13119534 0.93586006
+5.25655977 0.91362974
+5.43731778 0.9154519
+5.68221574 0.94351312
+6.         1.
+};
+\end{axis}
+\end{tikzpicture}
+
+\end{document}
