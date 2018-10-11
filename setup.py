@@ -1,8 +1,15 @@
 from setuptools import setup
 
+# "import" __version__
+__version__ = 'unknown'
+for line in open('src/magic_call/__init__.py'):
+    if line.startswith('__version__'):
+        exec(line)
+        break
+
 setup(
     name='magic_call',
-    version='0.0.0',
+    version=__version__,
     package_dir={'': 'src'},
     packages=['magic_call'],
     author='Matthias Geier',
