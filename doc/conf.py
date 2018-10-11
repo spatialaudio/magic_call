@@ -37,6 +37,8 @@ latex_elements = {
     'papersize': 'a4paper',
     'printindex': '',
 }
-latex_documents = [('index', 'magic_call.tex', project, authors, 'howto')]
+latex_documents = [(
+    'index', 'magic_call.tex', 'The Python package \\texttt{magic\\_call}',
+    authors, 'howto')]
 latex_show_urls = 'footnote'
 latex_domain_indices = False
