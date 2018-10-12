@@ -125,8 +125,6 @@ class LatexCaller:
             tasks.append((dst,  chains))
             indices.append(idx)
 
-        print(tasks)
-
         nested_results = [self._run_group(source_bytes, suffix, ch)
                           for suffix, ch in tasks]
 
@@ -208,42 +206,40 @@ class LatexCaller:
         return chains
 
     def _run_group(self, source_bytes, dst, chains):
-        # TODO: move dir creation to future!
-        tempdir = _tempfile.TemporaryDirectory(prefix=_BASENAME + '-')
-        cwd = _Path(tempdir.name)
 
-        print(chains)
+        latex_result = self.executor.submit(self._run_latex, source_bytes, dst)
+        results = self._handle_chains(latex_result, dst, chains)
 
-        latex_result = self.executor.submit(
-            self._run_latex, cwd, source_bytes, dst)
-        results = self._handle_chains(latex_result, cwd, dst, chains)
+        #if not results:
+        #    # TODO: Only files requested, no raw data?
 
-        if not results:
-            # TODO: Only files requested, no raw data?
+        #    #def callback(future):
+        #    #    print('cleaning up after latex_result:', tempdir.name)
+        #    #    tempdir.cleanup()
 
-            def callback(future):
-                print('cleaning up after latex_result:', tempdir.name)
-                tempdir.cleanup()
+        #    #latex_result.add_done_callback(callback)
+        #    #latex_result.add_done_callback(lambda _: tempdir.cleanup())
+        #    return results
 
-            latex_result.add_done_callback(callback)
-            #latex_result.add_done_callback(lambda _: tempdir.cleanup())
-            return results
+        #semaphore = _threading.Semaphore(len(results) - 1)
 
-        semaphore = _threading.Semaphore(len(results) - 1)
+        #def callback(future):
+        #    if not semaphore.acquire(blocking=False):
+        #        tempdir.cleanup()
 
-        def callback(future):
-            if not semaphore.acquire(blocking=False):
-                tempdir.cleanup()
+        #for result in results:
+        #    result.add_done_callback(callback)
 
-        for result in results:
-            result.add_done_callback(callback)
         # TODO: how do we know when moving files is finished?
         return results
 
-    def _run_latex(self, cwd, source_bytes, dst):
+    def _run_latex(self, source_bytes, dst):
 
         # TODO: are multiple LaTeX runs ever needed?
         #       if yes, the user can use latexmk as tex2pdf?
+
+        tempdir = _tempfile.TemporaryDirectory(prefix=_BASENAME + '-')
+        cwd = _Path(tempdir.name)
 
         command = self._get_command('tex2' + dst[1:], _BASENAME)
         result_name = _BASENAME + dst
@@ -272,21 +268,17 @@ class LatexCaller:
                 '#' * 80,
                 process.stdout.decode(),
             ]))
-        return cwd / (_BASENAME + dst)
+        return tempdir, result_name
 
     def _read_text(self, previous_result):
-        print('reading text')
-        path = previous_result.result()
-        print('after result', path)
-        return path.read_text()
+        tempdir, filename = previous_result.result()
+        return _Path(tempdir.name, filename).read_text()
 
     def _read_bytes(self, previous_result):
-        print('reading bytes')
-        path = previous_result.result()
-        print('after result', path)
-        return path.read_bytes()
+        tempdir, filename = previous_result.result()
+        return _Path(tempdir.name, filename).read_bytes()
 
-    def _handle_chains(self, previous_result, cwd, suffix, chains):
+    def _handle_chains(self, previous_result, suffix, chains):
 
         #generated_file = cwd / (basename + suffix)
         target_files = []
@@ -296,7 +288,6 @@ class LatexCaller:
         groups = {}
         for i, chain in enumerate(chains):
             if not chain:
-                print('loading data from file', cwd, suffix)
                 # TODO: more general mechanism to switch text/bytes
                 # Chain is finished, load data from file
                 if suffix == '.svg':
@@ -327,7 +318,7 @@ class LatexCaller:
         if tasks:
             nested_results = [
                 self._continue_conversion(
-                    previous_result, cwd, suffix, dst, chains)
+                    previous_result, suffix, dst, chains)
                 for dst, chains in tasks]
             for idx, result in zip(indices, nested_results):
                 all_results.extend(zip(idx, result))
@@ -353,7 +344,8 @@ class LatexCaller:
         # TODO: Exception might be raised on Windows if target file exists!?!
 
         def move(future):
-            source_file = future.result()
+            tempdir, filename = future.result()
+            source_file = _Path(tempdir.name) / filename
             # NB: There can be multiple file names for the same source file
             for target_file in target_files[:-1]:
                 _shutil.copy2(source_file, target_file)
@@ -375,30 +367,31 @@ class LatexCaller:
         for result in results:
             result.add_done_callback(callback)
 
-    def _continue_conversion(self, previous_result, cwd, src, dst, chains):
+    def _continue_conversion(self, previous_result, src, dst, chains):
         converter_result = self.executor.submit(
-            self._run_converter, previous_result, cwd, src, dst, chains)
-        return self._handle_chains(converter_result, cwd, dst, chains)
+            self._run_converter, previous_result, src, dst, chains)
+        return self._handle_chains(converter_result, dst, chains)
 
-    def _run_converter(self, previous_result, cwd, src, dst, chains):
-        srcfile = previous_result.result()
+    def _run_converter(self, previous_result, src, dst, chains):
+        tempdir, filename = previous_result.result()
+        cwd = _Path(tempdir.name)
 
         # NB: The destination file has both suffixes!
-        dstfile = srcfile.with_suffix(srcfile.suffix + dst)
+        srcfile = cwd / filename
+        dstfile = cwd / (filename + dst)
         command = self._get_command(src[1:] + '2' + dst[1:], srcfile, dstfile)
-        print('running command', command)
         process = _subprocess.run(
             _shlex.split(command),
             cwd=cwd,
             stdout=_subprocess.PIPE,
             stderr=_subprocess.STDOUT)
-        if process.returncode or not (cwd / dstfile).is_file():
+        if process.returncode or not dstfile.is_file():
             raise RuntimeError('\n'.join([
                 'Error running {!r} to create {!r}:'.format(
                     command, dstfile.name),
                 process.stdout.decode(),
             ]))
-        return dstfile
+        return tempdir, dstfile.name
 
     def _formats_and_files2chains(self, formats, files):
         """Convert formats to full tool chains."""
