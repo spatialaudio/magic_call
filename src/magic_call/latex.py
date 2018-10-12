@@ -1,25 +1,16 @@
 """Tools for Calling LaTeX from Python.
 
-http://magic_call.readthedocs.io/
+https://magic_call.readthedocs.io/
 
 """
-# https://ipython.readthedocs.io/en/latest/config/custommagics.html
-
 from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
 import os as _os
 from pathlib import Path as _Path
 import shlex as _shlex
 import shutil as _shutil
 import subprocess as _subprocess
-import sys as _sys
 import tempfile as _tempfile
 import threading as _threading
-
-# https://doc.sagemath.org/html/en/reference/misc/sage/misc/latex.html
-# https://github.com/sagemath/sage/blob/master/src/sage/misc/latex.py
-# https://github.com/brendano/runlatex/blob/master/runlatex.py
-# https://vog.github.io/texcaller/
-# https://github.com/mbr/latex
 
 # %config InlineBackend.figure_formats=['svg']
 
@@ -309,8 +300,6 @@ class LatexCaller:
         return _Path(tempdir.name, filename).read_bytes()
 
     def _handle_chains(self, previous_result, suffix, chains):
-
-        #generated_file = cwd / (basename + suffix)
         target_files = []
         all_results = []
 
@@ -474,11 +463,6 @@ def load_ipython_extension(ipython):
     """
     from . import _magic_latex
     ipython.register_magics(_magic_latex.CallLatex)
-
-
-def unload_ipython_extension(ipython):
-    # TODO: wait for async calls?
-    print('############# magic_call unloaded')
 
 
 if __name__ == '__main__':
