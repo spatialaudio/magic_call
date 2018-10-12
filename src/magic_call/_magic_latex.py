@@ -8,6 +8,8 @@ from . import latex
 
 # TODO: is it possible to use LaTeX syntax highlighting for cell magics?
 
+# %config InlineBackend.figure_formats=['svg']
+
 _MIME_TYPES = {
     'png': 'image/png',
     'svg': 'image/svg+xml',
@@ -171,7 +173,7 @@ class CallLatex(magic.Magics):
     def __init__(self, **kwargs):
         super(CallLatex, self).__init__(**kwargs)
         # TODO: get settings and pass them on?
-        self.caller = latex.LatexCaller()
+        self.caller = latex.Caller()
 
     @magic.line_cell_magic
     def call_latex_preamble(self, line, cell=None):
@@ -227,7 +229,7 @@ class CallLatex(magic.Magics):
         # TODO: get formats
         #formats = ['svg']
         formats = [['svg', 'pdf', 'png']]
-        results = self.caller.call_latex(cell, formats, blocking=False)
+        results = self.caller.call(cell, formats, blocking=False)
         publish(formats, results)
 
     # TODO: move down

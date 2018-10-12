@@ -1,4 +1,9 @@
-"""TODO: module docstring."""
+"""
+
+https://magic_call.readthedocs.io/
+
+"""
+from ._base import *
 
 __version__ = '0.0.0'
 
