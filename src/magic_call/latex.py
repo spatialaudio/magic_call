@@ -13,6 +13,7 @@ import shutil as _shutil
 import subprocess as _subprocess
 import sys as _sys
 import tempfile as _tempfile
+import threading as _threading
 
 # https://doc.sagemath.org/html/en/reference/misc/sage/misc/latex.html
 # https://github.com/sagemath/sage/blob/master/src/sage/misc/latex.py
@@ -99,6 +100,9 @@ class LatexCaller:
             if not any(k == name for k, v in self.commands):
                 self.commands.append((name, command))
         # TODO: specify number of threads?
+        # TODO: allow passing executor in
+        self.executor = _ThreadPoolExecutor()
+        #self.executor = _ThreadPoolExecutor(max_workers=1)
 
     def call_latex(self, source, formats=(), files=()):
         if isinstance(formats, str):
@@ -107,7 +111,34 @@ class LatexCaller:
         else:
             single_format = False
         chains = self._formats_and_files2chains(formats, files)
-        results = self._run_all(source.encode(), chains)
+        # TODO: check if source is already bytes
+        source_bytes = source.encode()
+
+        # Group by first format in chain, typically pdf or dvi
+        groups = {}
+        for i, chain in enumerate(chains):
+            groups.setdefault(chain[0], []).append((i, chain[1:]))
+        tasks = []
+        indices = []  # Positions in the original list of formats
+        for dst, numbered_chains in groups.items():
+            idx, chains = zip(*numbered_chains)
+            tasks.append((dst,  chains))
+            indices.append(idx)
+
+        print(tasks)
+
+        nested_results = [self._run_group(source_bytes, suffix, ch)
+                          for suffix, ch in tasks]
+
+        flat_results = []
+        for idx, result in zip(indices, nested_results):
+            flat_results.extend(zip(idx, result))
+        flat_results.sort()  # Restore original order of formats
+        results = [data for _, data in flat_results]
+
+        # TODO: don't wait, just return futures
+        results = [r.result() for r in results]
+
         if single_format:
             results, = results
         return results
@@ -176,48 +207,46 @@ class LatexCaller:
                         partial_chains.append([src] + chain)
         return chains
 
-    def _run_all(self, source_bytes, chains):
-        # Group by first format in chain, typically pdf or dvi
-        groups = {}
-        for i, chain in enumerate(chains):
-            groups.setdefault(chain[0], []).append((i, chain[1:]))
-        tasks = []
-        indices = []  # Positions in the original list of formats
+    def _run_group(self, source_bytes, dst, chains):
+        # TODO: move dir creation to future!
+        tempdir = _tempfile.TemporaryDirectory(prefix=_BASENAME + '-')
+        cwd = _Path(tempdir.name)
 
-        def func(task):
-            suffix, ch = task
-            return self._run_latex_and_more(source_bytes, suffix, ch)
+        print(chains)
 
-        for dst, numbered_chains in groups.items():
-            idx, chains = zip(*numbered_chains)
-            tasks.append((dst,  chains))
-            indices.append(idx)
+        latex_result = self.executor.submit(
+            self._run_latex, cwd, source_bytes, dst)
+        results = self._handle_chains(latex_result, cwd, dst, chains)
 
-        executor = _ThreadPoolExecutor(max_workers=len(tasks))
-        nested_results = executor.map(func, tasks)
+        if not results:
+            # TODO: Only files requested, no raw data?
 
-        flat_results = []
-        for idx, result in zip(indices, nested_results):
-            flat_results.extend(zip(idx, result))
-        flat_results.sort()  # Restore original order of formats
-        return [data for _, data in flat_results]
+            def callback(future):
+                print('cleaning up after latex_result:', tempdir.name)
+                tempdir.cleanup()
 
-    def _run_latex_and_more(self, source_bytes, dst, chains):
-        with _tempfile.TemporaryDirectory(prefix=_BASENAME) as cwd:
-            cwd = _Path(cwd)
-            self._run_latex(cwd, source_bytes, _BASENAME, dst)
-            # TODO: use return value for something?
-            results = self._handle_chains(cwd, _BASENAME, dst, chains)
-            # TODO: copy/move the files somewhere if requested?
+            latex_result.add_done_callback(callback)
+            #latex_result.add_done_callback(lambda _: tempdir.cleanup())
+            return results
+
+        semaphore = _threading.Semaphore(len(results) - 1)
+
+        def callback(future):
+            if not semaphore.acquire(blocking=False):
+                tempdir.cleanup()
+
+        for result in results:
+            result.add_done_callback(callback)
+        # TODO: how do we know when moving files is finished?
         return results
 
-    def _run_latex(self, cwd, source_bytes, basename, dst):
+    def _run_latex(self, cwd, source_bytes, dst):
 
         # TODO: are multiple LaTeX runs ever needed?
         #       if yes, the user can use latexmk as tex2pdf?
 
-        command = self._get_command('tex2' + dst[1:], basename)
-        result_name = basename + dst
+        command = self._get_command('tex2' + dst[1:], _BASENAME)
+        result_name = _BASENAME + dst
 
         env = _os.environ.copy()
         # NB: The final ':' makes LaTeX also look in the default paths
@@ -243,10 +272,23 @@ class LatexCaller:
                 '#' * 80,
                 process.stdout.decode(),
             ]))
-        # TODO: return something?
+        return cwd / (_BASENAME + dst)
 
-    def _handle_chains(self, cwd, basename, suffix, chains):
-        generated_file = cwd / (basename + suffix)
+    def _read_text(self, previous_result):
+        print('reading text')
+        path = previous_result.result()
+        print('after result', path)
+        return path.read_text()
+
+    def _read_bytes(self, previous_result):
+        print('reading bytes')
+        path = previous_result.result()
+        print('after result', path)
+        return path.read_bytes()
+
+    def _handle_chains(self, previous_result, cwd, suffix, chains):
+
+        #generated_file = cwd / (basename + suffix)
         target_files = []
         all_results = []
 
@@ -254,27 +296,28 @@ class LatexCaller:
         groups = {}
         for i, chain in enumerate(chains):
             if not chain:
+                print('loading data from file', cwd, suffix)
+                # TODO: more general mechanism to switch text/bytes
                 # Chain is finished, load data from file
                 if suffix == '.svg':
-                    data = generated_file.read_text()
+                    data = self.executor.submit(
+                        self._read_text, previous_result)
                 else:
-                    data = generated_file.read_bytes()
+                    data = self.executor.submit(
+                        self._read_bytes, previous_result)
                 # NB: If the same suffix is requested multiple times, the same
                 #     file is read and appended multiple times
                 all_results.append((i, data))
                 continue
             if len(chain) == 1 and isinstance(chain[0], _Path):
-                # NB: We are moving files away, but we do it below when
-                #     everything that might depend on them is already done.
+                # NB: We are moving files away, but we cannot do it before all
+                # futures that are created in this function are finished.
+                # See below.
                 target_files.append(chain[0])
                 continue
             groups.setdefault(chain[0], []).append((i, chain[1:]))
         tasks = []
         indices = []
-
-        def func(task):
-            dst, chains = task
-            return self._run_converter(cwd, basename, suffix, dst, chains)
 
         for dst, numbered_chains in groups.items():
             idx, chains = zip(*numbered_chains)
@@ -282,29 +325,68 @@ class LatexCaller:
             indices.append(idx)
 
         if tasks:
-            executor = _ThreadPoolExecutor(max_workers=len(tasks))
-            nested_results = executor.map(func, tasks)
+            nested_results = [
+                self._continue_conversion(
+                    previous_result, cwd, suffix, dst, chains)
+                for dst, chains in tasks]
             for idx, result in zip(indices, nested_results):
                 all_results.extend(zip(idx, result))
             all_results.sort()  # Restore original order of chains
 
+        results = [data for _, data in all_results]
+        if target_files:
+            self._move_file(previous_result, target_files, results)
+        return results
+
+    def _move_file(self, previous_result, target_files, results):
+        """Move a file from the temporary dir to current working dir.
+
+        If multiple target file names are given, the file is copied
+        to all but the last location and then moved to the final
+        location.
+
+        This has to be done after all converters are finished with the
+        source file.  Therefore it is done in the "done callback" of
+        the future that is completed last.
+
+        """
         # TODO: Exception might be raised on Windows if target file exists!?!
 
-        # NB: It's quite unlikely that a user requests multiple file names for
-        #     the exact same file type, but we have to handle it anyway:
-        for target_file in target_files[:-1]:
-            _shutil.copy2(generated_file, target_file)
-        # The last (and probably only) file can be moved:
-        for target_file in target_files[-1:]:
-            # NB: This is done after all converters are done with the file:
-            _shutil.move(generated_file, target_file)
-        return [data for _, data in all_results]
+        def move(future):
+            source_file = future.result()
+            # NB: There can be multiple file names for the same source file
+            for target_file in target_files[:-1]:
+                _shutil.copy2(source_file, target_file)
+            # The last (and probably only) file can be moved:
+            for target_file in target_files[-1:]:
+                _shutil.move(source_file, target_file)
 
-    def _run_converter(self, cwd, basename, src, dst, chains):
-        srcfile = basename + src
+        if not results:
+            previous_result.add_done_callback(move)
+            return
+
+        semaphore = _threading.Semaphore(len(results) - 1)
+
+        def callback(future):
+            # NB: This will only be done in the future that is completed last.
+            if not semaphore.acquire(blocking=False):
+                move(previous_result)
+
+        for result in results:
+            result.add_done_callback(callback)
+
+    def _continue_conversion(self, previous_result, cwd, src, dst, chains):
+        converter_result = self.executor.submit(
+            self._run_converter, previous_result, cwd, src, dst, chains)
+        return self._handle_chains(converter_result, cwd, dst, chains)
+
+    def _run_converter(self, previous_result, cwd, src, dst, chains):
+        srcfile = previous_result.result()
+
         # NB: The destination file has both suffixes!
-        dstfile = srcfile + dst
+        dstfile = srcfile.with_suffix(srcfile.suffix + dst)
         command = self._get_command(src[1:] + '2' + dst[1:], srcfile, dstfile)
+        print('running command', command)
         process = _subprocess.run(
             _shlex.split(command),
             cwd=cwd,
@@ -312,10 +394,11 @@ class LatexCaller:
             stderr=_subprocess.STDOUT)
         if process.returncode or not (cwd / dstfile).is_file():
             raise RuntimeError('\n'.join([
-                'Error running {!r} to create {!r}:'.format(command, dstfile),
+                'Error running {!r} to create {!r}:'.format(
+                    command, dstfile.name),
                 process.stdout.decode(),
             ]))
-        return self._handle_chains(cwd, srcfile, dst, chains)
+        return dstfile
 
     def _formats_and_files2chains(self, formats, files):
         """Convert formats to full tool chains."""
@@ -368,6 +451,11 @@ def load_ipython_extension(ipython):
     """
     from . import _magic_latex
     ipython.register_magics(_magic_latex.CallLatex)
+
+
+def unload_ipython_extension(ipython):
+    # TODO: wait for async calls?
+    print('magic_call unloaded')
 
 
 if __name__ == '__main__':
