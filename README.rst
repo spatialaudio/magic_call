@@ -50,7 +50,7 @@ https://github.com/cjdrake/ipython-magic
 ::
 
     layout_engine='dot'
-    cmd = ['dot', '-Tsvg', '-K', layout_engine]
+    cmd = ['dot', '-Tsvg', '-K', layout_engine, '-o', outfile]
 
 https://github.com/tkf/ipython-hierarchymagic
 
