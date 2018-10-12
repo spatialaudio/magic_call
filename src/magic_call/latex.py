@@ -104,7 +104,7 @@ class LatexCaller:
         self.executor = _ThreadPoolExecutor()
         #self.executor = _ThreadPoolExecutor(max_workers=1)
 
-    def call_latex(self, source, formats=(), files=(), blocking=False):
+    def call_latex(self, source, formats=(), files=(), blocking=True):
         if isinstance(formats, str):
             formats = [formats]
             single_format = True
@@ -169,7 +169,8 @@ class LatexCaller:
             results, = results
         return results
 
-    def call_latex_standalone(self, source, formats=(), files=(), tikz=False):
+    def call_latex_standalone(self, source, formats=(), files=(), tikz=False,
+                              blocking=True):
         document = '\n'.join([
             standalone_header(tikz=tikz),
             *self.preambles,
@@ -177,16 +178,17 @@ class LatexCaller:
             source,
             r'\end{document}',
         ])
-        return self.call_latex(document, formats, files)
+        return self.call_latex(document, formats, files, blocking)
 
-    def call_latex_tikzpicture(self, source, formats=(), files=()):
+    def call_latex_tikzpicture(self, source, formats=(), files=(),
+                               blocking=True):
         tikzpicture = '\n'.join([
             r'\begin{tikzpicture}',
             source,
             r'\end{tikzpicture}',
         ])
         return self.call_latex_standalone(
-            tikzpicture, formats, files, tikz=True)
+            tikzpicture, formats, files, tikz=True, blocking=blocking)
 
     def get_default_chains(self):
         """Populate dictionary of default tool chains by suffix.
@@ -461,10 +463,6 @@ class LatexCaller:
         return command.format(*args)
 
 
-def _merge_futures(futures):
-    return [future.result() for future in futures]
-
-
 def load_ipython_extension(ipython):
     """Hook function for IPython.
 
@@ -480,7 +478,7 @@ def load_ipython_extension(ipython):
 
 def unload_ipython_extension(ipython):
     # TODO: wait for async calls?
-    print('magic_call unloaded')
+    print('############# magic_call unloaded')
 
 
 if __name__ == '__main__':

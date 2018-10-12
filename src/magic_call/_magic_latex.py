@@ -227,7 +227,7 @@ class CallLatex(magic.Magics):
         # TODO: get formats
         #formats = ['svg']
         formats = [['svg', 'pdf', 'png']]
-        results = self.caller.call_latex(cell, formats)
+        results = self.caller.call_latex(cell, formats, blocking=False)
         publish(formats, results)
 
     # TODO: move down
@@ -292,7 +292,8 @@ class CallLatex(magic.Magics):
         # TODO: Jinja
         # TODO: store Jinja result to file if requested
 
-        results = self.caller.call_latex_standalone(cell, formats, files)
+        results = self.caller.call_latex_standalone(
+            cell, formats, files, blocking=False)
 
         for disp, output, format in zip(displays, results, formats):
             output.add_done_callback(publish_update(disp, format))
@@ -317,7 +318,8 @@ class CallLatex(magic.Magics):
         #formats = ['svg']
         formats = [['svg', 'pdf', 'png']]
 
-        results = self.caller.call_latex_tikzpicture(cell, formats)
+        results = self.caller.call_latex_tikzpicture(
+            cell, formats, blocking=False)
 
         # TODO: store LaTeX content of environment (with Jinja replacements)
 
