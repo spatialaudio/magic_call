@@ -2,7 +2,7 @@ import shlex
 
 from IPython.core import magic
 import IPython.core.magic_arguments as ma
-from IPython.display import publish_display_data
+from IPython.display import publish_display_data, display
 
 from . import latex
 
@@ -67,7 +67,9 @@ _MIME_TYPES = {
 def publish(formats, results):
     # TODO: somehow use a IPython.utils.capture.RichOutput?
     display_data = {}
-    for format, result in zip(formats, results):
+    results, = results
+    formats, = formats
+    for format, result in zip(formats, results.result()):
         display_data[_MIME_TYPES[format]] = result
 
     # TODO: latex has higher priority than png!
@@ -88,6 +90,31 @@ def publish(formats, results):
     #   },
     # },
     return publish_display_data(display_data)
+
+
+def publish_empty(formats):
+    if isinstance(formats, str):
+        formats = [formats]
+    data = {}
+    for format in formats:
+        data[_MIME_TYPES[format]] = ''
+    return display(data, raw=True, display_id=True)
+
+
+def publish_update(disp, format):
+    if not isinstance(format, (list, tuple)):
+        format = [format]
+
+    def callback(future):
+        output = future.result()
+        if not isinstance(output, (list, tuple)):
+            output = [output]
+        data = {}
+        for f, o in zip(format, output):
+            data[_MIME_TYPES[f]] = o
+        disp.update(data, raw=True)
+
+    return callback
 
 
 def _arguments_default(func):
@@ -199,7 +226,7 @@ class CallLatex(magic.Magics):
 
         # TODO: get formats
         #formats = ['svg']
-        formats = ['svg', 'pdf', 'png']
+        formats = [['svg', 'pdf', 'png']]
         results = self.caller.call_latex(cell, formats)
         publish(formats, results)
 
@@ -225,26 +252,16 @@ class CallLatex(magic.Magics):
             if args.display:
                 raise TypeError(
                     '--display and --no-display are mutually exclusive')
-            return [], [], []
+            return [[]]
         if args.display:
             formats = []
-            starts = [0]
-            ends = []
-            for display in args.display:
-                semicolon_parts = display.split(';')
-                for semicolon_part in semicolon_parts:
-                    comma_parts = semicolon_part.split(',')
-                    formats.extend(comma_parts)
-                    idx = starts[-1] + len(comma_parts)
-                    starts.append(idx)
-                    ends.append(idx)
-            starts.pop()
-            return formats, starts, ends
+            for disp in args.display:
+                for semicolon_part in disp.split(';'):
+                    formats.append(semicolon_part.split(','))
+            return formats
         # TODO: get default formats from config
-        formats = ['png']
-        starts = [0]
-        ends = [1]
-        return formats, starts, ends
+        formats = [['png']]
+        return formats
 
     @_arguments_default
     @_arguments_display_save
@@ -264,15 +281,21 @@ class CallLatex(magic.Magics):
             # TODO
             return line
 
-        formats, starts, ends = self._check_display(args)
+        formats = self._check_display(args)
+
+        displays = []
+        for format in formats:
+            displays.append(publish_empty(format))
+
         files = args.save
 
         # TODO: Jinja
         # TODO: store Jinja result to file if requested
 
         results = self.caller.call_latex_standalone(cell, formats, files)
-        for start, end in zip(starts, ends):
-            publish(formats[start:end], results[start:end])
+
+        for disp, output, format in zip(displays, results, formats):
+            output.add_done_callback(publish_update(disp, format))
 
     # TODO: magic for pstricks?
 
@@ -292,7 +315,7 @@ class CallLatex(magic.Magics):
 
         # TODO: get only the necessary formats
         #formats = ['svg']
-        formats = ['svg', 'pdf', 'png']
+        formats = [['svg', 'pdf', 'png']]
 
         results = self.caller.call_latex_tikzpicture(cell, formats)
 

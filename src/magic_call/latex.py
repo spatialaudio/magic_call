@@ -104,13 +104,24 @@ class LatexCaller:
         self.executor = _ThreadPoolExecutor()
         #self.executor = _ThreadPoolExecutor(max_workers=1)
 
-    def call_latex(self, source, formats=(), files=()):
+    def call_latex(self, source, formats=(), files=(), blocking=False):
         if isinstance(formats, str):
             formats = [formats]
             single_format = True
         else:
             single_format = False
-        chains = self._formats_and_files2chains(formats, files)
+
+        flattened_formats = []
+        sizes = []
+        for item in formats:
+            if isinstance(item, (tuple, list)):
+                sizes.append(len(item))
+                flattened_formats.extend(item)
+            else:
+                sizes.append(-1)
+                flattened_formats.append(item)
+
+        chains = self._formats_and_files2chains(flattened_formats, files)
         # TODO: check if source is already bytes
         source_bytes = source.encode()
 
@@ -134,8 +145,25 @@ class LatexCaller:
         flat_results.sort()  # Restore original order of formats
         results = [data for _, data in flat_results]
 
-        # TODO: don't wait, just return futures
-        results = [r.result() for r in results]
+        nested_results = []
+        if blocking:
+            results = [r.result() for r in results]
+            for size in sizes:
+                if size == -1:
+                    nested_results.append(results.pop(0))
+                else:
+                    nested_results.append(results[:size])
+                    results = results[size:]
+        else:
+            for size in sizes:
+                if size == -1:
+                    nested_results.append(results.pop(0))
+                else:
+                    nested_results.append(self.executor.submit(
+                        lambda fs: [f.result() for f in fs], results[:size]))
+                    results = results[size:]
+
+        results = nested_results
 
         if single_format:
             results, = results
@@ -431,6 +459,10 @@ class LatexCaller:
         except StopIteration:
             raise RuntimeError('Command not found: ' + name)
         return command.format(*args)
+
+
+def _merge_futures(futures):
+    return [future.result() for future in futures]
 
 
 def load_ipython_extension(ipython):
