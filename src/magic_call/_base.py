@@ -1,10 +1,10 @@
-from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
 from pathlib import Path as _Path
 import shlex as _shlex
 import shutil as _shutil
 import subprocess as _subprocess
 import tempfile as _tempfile
-import threading as _threading
+
+from . import _scheduler
 
 
 _BASENAME = 'magic_call'
@@ -16,19 +16,15 @@ class Caller:
     #       but the one that needs to go least far in the list of commands.
     # TODO: DOC: Explicit tool chain can be specified: ps.pdf.png, dvi.png
     # TODO: DOC: How to decide between pdf.svg and dvi.svg?
-    def __init__(self, commands=(), *, env=None):
+    def __init__(self, commands=(), *, env=None, max_workers=None):
         """
 
         The order of *commands* matters!
 
         """
-        self.preambles = []
         self.commands = list(commands)
-        # TODO: specify number of threads?
-        # TODO: allow passing executor in
-        self.executor = _ThreadPoolExecutor()
-        #self.executor = _ThreadPoolExecutor(max_workers=1)
         self.env = env
+        self._scheduler = _scheduler.Scheduler(max_workers)
 
     def call(self, source, formats=(), files=(), blocking=True):
         if isinstance(formats, str):
@@ -88,7 +84,7 @@ class Caller:
                 if size == -1:
                     nested_results.append(results.pop(0))
                 else:
-                    task = self._create_task(
+                    task = self._scheduler.create_task(
                             lambda _, deps: [d.future.result() for d in deps],
                             results[:size])
                     nested_results.append(task.future)
@@ -155,8 +151,9 @@ class Caller:
         # TODO: make sure tempdir gets cleaned up?
         # TODO: how do we know when moving files is finished?
 
-        task_dir = self._create_task(create_temporary_directory)
-        task_create = self._create_task(self._create, source_bytes, task_dir,
+        task_dir = self._scheduler.create_task(create_temporary_directory)
+        task_create = self._scheduler.create_task(
+                self._create, source_bytes, task_dir,
                 stem=_BASENAME, suffix=suffix)
 
         return self._recurse_chains(task_create, suffix, chains)
@@ -174,9 +171,11 @@ class Caller:
                     # TODO: more general mechanism to switch text/bytes
                     # Chain is finished, load data from file
                     if suffix == '.svg':
-                        task_read = self._create_task(read_text, source_task)
+                        function = read_text
                     else:
-                        task_read = self._create_task(read_bytes, source_task)
+                        function = read_bytes
+                    task_read = self._scheduler.create_task(
+                            function, source_task)
                 # NB: There is only one task reading the file, but several
                 # references to it might be appended to the results.
                 decorated_tasks.append((i, task_read))
@@ -197,7 +196,7 @@ class Caller:
         if tasks:
             nested_results = []
             for dst, chains in tasks:
-                converter_task = self._create_task(
+                converter_task = self._scheduler.create_task(
                         self._convert, source_task, suffix=dst)
                 nested_results.append(
                         self._recurse_chains(converter_task, dst, chains))
@@ -210,7 +209,7 @@ class Caller:
         if target_files:
             # NB: We are moving files away, but we cannot do it before all
             # tasks in this stage are finished. So we add them as dependencies.
-            task_move = self._create_task(
+            task_move = self._scheduler.create_task(
                     copy_and_move_files, source_task, *all_tasks,
                     targets=target_files)
             # TODO: add all move tasks to a separate result list
@@ -295,45 +294,6 @@ class Caller:
                 process.stdout.decode(),
             ]))
         # TODO: return something?
-
-    def _create_task(self, function, *args, **kwargs):
-        """
-
-        *args are passed to function ("task" is passed as first argument)
-
-        **kwargs are assigned as attributes to "task"
-
-        """
-        # NB: Using circular dependencies will cause deadlock!
-        # TODO: dataclass?
-        task = Task()
-        for k, v in kwargs.items():
-            setattr(task, k, v)
-        assert not hasattr(task, 'future')
-        task.future = self.executor.submit(_wrap_task, function, task, *args)
-        return task
-
-
-def _wrap_task(function, task, *args, **kwargs):
-    assert not hasattr(task, '_dependencies')
-    task._dependencies = []
-    assert '_dependencies' not in kwargs
-    for arg in args:
-        if not isinstance(arg, Task):
-            continue
-        # NB: This waits until all dependencies are done, but it also forces
-        #     exceptions to show themselves (for easier debugging).
-        arg.future.result()  # The result itself is discarded
-        task._dependencies.append(arg)  # Keep dependencies alive
-    return function(task, *args)
-
-
-# TODO: separate sub-module to hide this from users?
-
-# TODO: base class or mixin "Scheduler"? better as member!
-
-class Task:
-    pass
 
 
 def create_temporary_directory(task):

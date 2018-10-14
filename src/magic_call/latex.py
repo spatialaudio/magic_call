@@ -86,6 +86,7 @@ class Caller(_base.Caller):
             env.get('TEXINPUTS', ''),
         ])
         _base.Caller.__init__(self, commands, env=env)
+        self.preambles = []
 
     def call_latex_standalone(self, source, formats=(), files=(), tikz=False,
                               blocking=True):
