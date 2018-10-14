@@ -51,6 +51,7 @@ class Caller:
         # TODO: check if source is already bytes
         source_bytes = source.encode()
 
+        # TODO: make grouping more obvious? factor out?
         # Group by first format in chain, typically pdf or dvi
         groups = {}
         for i, chain in enumerate(chains):
@@ -65,16 +66,7 @@ class Caller:
         nested_results = []
         for dst, chains in tasks:
             nested_results.append(
-                    do(chains, self._run_in_tempdir, source_bytes, dst)
-
-
-                    )
-            result = self.executor.submit(
-                self._run_in_tempdir, source_bytes, dst)
-            nested_results.append(self._handle_chains(chains, result, dst))
-
-            # TODO: make sure tempdir gets cleaned up?
-            # TODO: how do we know when moving files is finished?
+                    self._run_in_tempdir(source_bytes, dst, chains))
 
         flat_results = []
         for idx, result in zip(indices, nested_results):
@@ -96,8 +88,10 @@ class Caller:
                 if size == -1:
                     nested_results.append(results.pop(0))
                 else:
-                    nested_results.append(self.executor.submit(
-                        lambda fs: [f.result() for f in fs], results[:size]))
+                    task = self._create_task(
+                            lambda _, deps: [d.future.result() for d in deps],
+                            results[:size])
+                    nested_results.append(task.future)
                     results = results[size:]
 
         results = nested_results
@@ -157,66 +151,41 @@ class Caller:
                         partial_chains.append([src] + chain)
         return chains
 
-    def _run_in_tempdir(self, source_bytes, dst):
-        tempdir = _tempfile.TemporaryDirectory(prefix=_BASENAME + '-')
-        cwd = _Path(tempdir.name)
+    def _run_in_tempdir(self, source_bytes, suffix, chains):
+        # TODO: make sure tempdir gets cleaned up?
+        # TODO: how do we know when moving files is finished?
 
-        command = self._get_command(dst[1:], _BASENAME)
-        result_name = _BASENAME + dst
+        task_dir = self._create_task(create_temporary_directory)
+        task_create = self._create_task(self._create, source_bytes, task_dir,
+                stem=_BASENAME, suffix=suffix)
 
-        # TODO: use creationflags=0x08000000 on Windows (CREATE_NO_WINDOW)?
-        process = _subprocess.run(
-            _shlex.split(command),
-            input=source_bytes,
-            cwd=cwd,
-            env=self.env,
-            stdout=_subprocess.PIPE,
-            stderr=_subprocess.STDOUT)
-        if process.returncode or not (cwd / result_name).is_file():
-            raise RuntimeError('\n'.join([
-                'Error running {!r} to create {!r} from this source:'.format(
-                    command, result_name),
-                source_bytes.decode(),
-                '#' * 80,
-                process.stdout.decode(),
-            ]))
-        return tempdir, _BASENAME, dst
+        return self._recurse_chains(task_create, suffix, chains)
 
-    def _read_text(self, previous_result):
-        tempdir, filename = previous_result.result()
-        return _Path(tempdir.name, filename).read_text()
-
-    def _read_bytes(self, previous_result):
-        tempdir, filename = previous_result.result()
-        return _Path(tempdir.name, filename).read_bytes()
-
-    def _handle_chains(self, previous_result, suffix, chains):
+    def _recurse_chains(self, source_task, suffix, chains):
         target_files = []
-        all_results = []
+        decorated_tasks = []
+        task_read = None
 
         # Group by first suffix in chain (for non-empty chains)
         groups = {}
         for i, chain in enumerate(chains):
             if not chain:
-                # TODO: more general mechanism to switch text/bytes
-                # Chain is finished, load data from file
-                if suffix == '.svg':
-                    data = self.executor.submit(
-                        self._read_text, previous_result)
-                else:
-                    data = self.executor.submit(
-                        self._read_bytes, previous_result)
-                # NB: If the same suffix is requested multiple times, the same
-                #     file is read and appended multiple times
-                all_results.append((i, data))
+                if not task_read:
+                    # TODO: more general mechanism to switch text/bytes
+                    # Chain is finished, load data from file
+                    if suffix == '.svg':
+                        task_read = self._create_task(read_text, source_task)
+                    else:
+                        task_read = self._create_task(read_bytes, source_task)
+                # NB: There is only one task reading the file, but several
+                # references to it might be appended to the results.
+                decorated_tasks.append((i, task_read))
                 continue
             if len(chain) == 1 and isinstance(chain[0], _Path):
-                # NB: We are moving files away, but we cannot do it before all
-                # futures that are created in this function are finished.
-                # See below.
                 target_files.append(chain[0])
                 continue
             groups.setdefault(chain[0], []).append((i, chain[1:]))
+
         tasks = []
         indices = []
 
@@ -228,81 +197,25 @@ class Caller:
         if tasks:
             nested_results = []
             for dst, chains in tasks:
+                converter_task = self._create_task(
+                        self._convert, source_task, suffix=dst)
                 nested_results.append(
-                    self._resolve_chains(previous_result, chains, dst))
+                        self._recurse_chains(converter_task, dst, chains))
             for idx, result in zip(indices, nested_results):
-                all_results.extend(zip(idx, result))
-            all_results.sort()  # Restore original order of chains
+                decorated_tasks.extend(zip(idx, result))
+            decorated_tasks.sort()  # Restore original order of chains
 
-        results = [data for _, data in all_results]
+        all_tasks = [task for _, task in decorated_tasks]
+
         if target_files:
-            self._move_file(previous_result, target_files, results)
-        return results
+            # NB: We are moving files away, but we cannot do it before all
+            # tasks in this stage are finished. So we add them as dependencies.
+            task_move = self._create_task(
+                    copy_and_move_files, source_task, *all_tasks,
+                    targets=target_files)
+            # TODO: add all move tasks to a separate result list
 
-    def _resolve_chains(previous_result, chains, dst):
-        result = self.executor.submit(
-            self._converter_task, previous_result, dst, chains)
-        return self._handle_chains(result, dst, chains)
-
-    def _move_file(self, previous_result, target_files, results):
-        """Move a file from the temporary dir to current working dir.
-
-        If multiple target file names are given, the file is copied
-        to all but the last location and then moved to the final
-        location.
-
-        This has to be done after all converters are finished with the
-        source file.  Therefore it is done in the "done callback" of
-        the future that is completed last.
-
-        """
-        # TODO: Exception might be raised on Windows if target file exists!?!
-
-        def move(future):
-            tempdir, filename = future.result()
-            source_file = _Path(tempdir.name) / filename
-            # NB: There can be multiple file names for the same source file
-            for target_file in target_files[:-1]:
-                _shutil.copy2(source_file, target_file)
-            # The last (and probably only) file can be moved:
-            for target_file in target_files[-1:]:
-                _shutil.move(source_file, target_file)
-
-        if not results:
-            previous_result.add_done_callback(move)
-            return
-
-        semaphore = _threading.Semaphore(len(results) - 1)
-
-        def callback(future):
-            # NB: This will only be done in the future that is completed last.
-            if not semaphore.acquire(blocking=False):
-                move(previous_result)
-
-        for result in results:
-            result.add_done_callback(callback)
-
-    def _converter_task(self, previous_result, dst, chains):
-        tempdir, filename = previous_result.result()
-        cwd = _Path(tempdir.name)
-
-        # NB: The destination file has both suffixes!
-        srcfile = cwd / filename
-        dstfile = cwd / (filename + dst)
-        command = self._get_command(src[1:] + '2' + dst[1:], srcfile, dstfile)
-        process = _subprocess.run(
-            _shlex.split(command),
-            cwd=cwd,
-            env=self.env,
-            stdout=_subprocess.PIPE,
-            stderr=_subprocess.STDOUT)
-        if process.returncode or not dstfile.is_file():
-            raise RuntimeError('\n'.join([
-                'Error running {!r} to create {!r}:'.format(
-                    command, dstfile.name),
-                process.stdout.decode(),
-            ]))
-        return tempdir, filename, dst
+        return all_tasks
 
     def _formats_and_files2chains(self, formats, files):
         """Convert formats to full tool chains."""
@@ -341,3 +254,122 @@ class Caller:
             raise RuntimeError('Command not found: ' + name)
         return command.format(*args)
 
+    def _create(self, task, source_bytes, tempdir):
+        command = self._get_command(task.suffix[1:], task.stem)
+        task.cwd = tempdir.path
+        task.path = task.cwd / (task.stem + task.suffix)
+        # TODO: use creationflags=0x08000000 on Windows (CREATE_NO_WINDOW)?
+        process = _subprocess.run(
+            _shlex.split(command),
+            input=source_bytes,
+            cwd=task.cwd,
+            env=self.env,
+            stdout=_subprocess.PIPE,
+            stderr=_subprocess.STDOUT)
+        if process.returncode or not task.path.is_file():
+            raise RuntimeError('\n'.join([
+                'Error running {!r} to create {!r} from this source:'.format(
+                    command, str(task.path)),
+                source_bytes.decode(),
+                '#' * 80,
+                process.stdout.decode(),
+            ]))
+
+    def _convert(self, task, source):
+        # NB: The destination file has both suffixes!
+        task.cwd = source.cwd
+        task.path = source.path.with_suffix(source.suffix + task.suffix)
+        command = self._get_command(
+                source.suffix[1:] + '2' + task.suffix[1:],
+                source.path, task.path)
+        process = _subprocess.run(
+            _shlex.split(command),
+            cwd=task.cwd,
+            env=self.env,
+            stdout=_subprocess.PIPE,
+            stderr=_subprocess.STDOUT)
+        if process.returncode or not task.path.is_file():
+            raise RuntimeError('\n'.join([
+                'Error running {!r} to create {!r}:'.format(
+                    command, task.path.name),
+                process.stdout.decode(),
+            ]))
+        # TODO: return something?
+
+    def _create_task(self, function, *args, **kwargs):
+        """
+
+        *args are passed to function ("task" is passed as first argument)
+
+        **kwargs are assigned as attributes to "task"
+
+        """
+        # NB: Using circular dependencies will cause deadlock!
+        # TODO: dataclass?
+        task = Task()
+        for k, v in kwargs.items():
+            setattr(task, k, v)
+        assert not hasattr(task, 'future')
+        task.future = self.executor.submit(_wrap_task, function, task, *args)
+        return task
+
+
+def _wrap_task(function, task, *args, **kwargs):
+    assert not hasattr(task, '_dependencies')
+    task._dependencies = []
+    assert '_dependencies' not in kwargs
+    for arg in args:
+        if not isinstance(arg, Task):
+            continue
+        # NB: This waits until all dependencies are done, but it also forces
+        #     exceptions to show themselves (for easier debugging).
+        arg.future.result()  # The result itself is discarded
+        task._dependencies.append(arg)  # Keep dependencies alive
+    return function(task, *args)
+
+
+# TODO: separate sub-module to hide this from users?
+
+# TODO: base class or mixin "Scheduler"? better as member!
+
+class Task:
+    pass
+
+
+def create_temporary_directory(task):
+    # NB: must be kept alive!
+    task.tempdir = _tempfile.TemporaryDirectory(prefix=_BASENAME + '-')
+    task.path = _Path(task.tempdir.name)
+
+
+def read_text(task, source):
+    return source.path.read_text()
+
+
+def read_bytes(task, source):
+    return source.path.read_bytes()
+
+
+def copy_and_move_files(task, source, *dependencies):
+    """Move a file from the temporary dir to current working dir.
+
+    If multiple target file names are given, the file is copied
+    to all but the last location and then moved to the final
+    location.
+
+    This has to be done after all converters are finished with the
+    source file.  This should be taken care of by the dependencies.
+
+    """
+    # TODO: Exception might be raised on Windows if target file exists!?!
+
+    # NB: All but the last file are copied ...
+    for target_file in task.targets[:-1]:
+        _shutil.copy2(source.path, target_file)
+    # ... the last (and probably only) file can be moved.
+    for target_file in task.targets[-1:]:
+        _shutil.move(source.path, target_file)
+
+    # TODO: return something else? Or nothing?
+    # NB: Exceptions are only shown if someone calls result() on this!
+    return task.targets

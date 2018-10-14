@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import shutil
 from tempfile import TemporaryDirectory
@@ -19,8 +19,7 @@ class Scheduler:
         assert not hasattr(task, 'future')
         task.future = self.executor.submit(
                 _wrap_task, task, *dependencies, **kwargs)
-
-        # TODO: return task? return future?
+        return task
 
 
 def _wrap_task(task, *dependencies, **kwargs):
@@ -114,20 +113,13 @@ class Cleanup:
 # Test to check if temp dir is kept alive
 def get_only_futures(sched):
     sched = Scheduler()
-    task_dir = CreateTemporaryDirectory()
-    sched.add_task(task_dir)
-    task_dvi = Create('myfile', '.dvi')
-    sched.add_task(task_dvi, task_dir)
-    task_ps = Convert('.ps')
-    sched.add_task(task_ps, task_dvi)
-    task_pdf = Convert('.pdf')
-    sched.add_task(task_pdf, task_ps)
-    task_svg = Convert('.svg')
-    sched.add_task(task_svg, task_dvi)
-    task_svg_data = GetData(binary=False)
-    sched.add_task(task_svg_data, task_svg)
-    task_ps_data = GetData()
-    sched.add_task(task_ps_data, task_ps)
+    task_dir = sched.add_task(CreateTemporaryDirectory())
+    task_dvi = sched.add_task(Create('myfile', '.dvi'), task_dir)
+    task_ps = sched.add_task(Convert('.ps'), task_dvi)
+    task_pdf = sched.add_task(Convert('.pdf'), task_ps)
+    task_svg = sched.add_task(Convert('.svg'), task_dvi)
+    task_svg_data = sched.add_task(GetData(binary=False), task_svg)
+    task_ps_data = sched.add_task(GetData(), task_ps)
 
     task_move_svg = MoveFile('delme.svg')
     sched.add_task(task_move_svg, task_svg, task_svg_data)
