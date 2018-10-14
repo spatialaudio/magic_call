@@ -88,8 +88,8 @@ class Caller(_base.Caller):
         _base.Caller.__init__(self, commands, env=env)
         self.preambles = []
 
-    def call_latex_standalone(self, source, formats=(), files=(), tikz=False,
-                              blocking=True):
+    def call_standalone(self, source, formats=(), files=(), tikz=False,
+                        blocking=True):
         document = '\n'.join([
             standalone_header(tikz=tikz),
             *self.preambles,
@@ -99,14 +99,14 @@ class Caller(_base.Caller):
         ])
         return self.call(document, formats, files, blocking)
 
-    def call_latex_tikzpicture(self, source, formats=(), files=(),
+    def call_tikzpicture(self, source, formats=(), files=(),
                                blocking=True):
         tikzpicture = '\n'.join([
             r'\begin{tikzpicture}',
             source,
             r'\end{tikzpicture}',
         ])
-        return self.call_latex_standalone(
+        return self.call_standalone(
             tikzpicture, formats, files, tikz=True, blocking=blocking)
 
 

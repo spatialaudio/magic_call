@@ -72,7 +72,7 @@ class Caller:
 
         nested_results = []
         if blocking:
-            results = [r.result() for r in results]
+            results = [r.future.result() for r in results]
             for size in sizes:
                 if size == -1:
                     nested_results.append(results.pop(0))

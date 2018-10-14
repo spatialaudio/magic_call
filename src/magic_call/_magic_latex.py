@@ -294,7 +294,7 @@ class CallLatex(magic.Magics):
         # TODO: Jinja
         # TODO: store Jinja result to file if requested
 
-        results = self.caller.call_latex_standalone(
+        results = self.caller.call_standalone(
             cell, formats, files, blocking=False)
 
         for disp, output, format in zip(displays, results, formats):
@@ -320,7 +320,7 @@ class CallLatex(magic.Magics):
         #formats = ['svg']
         formats = [['svg', 'pdf', 'png']]
 
-        results = self.caller.call_latex_tikzpicture(
+        results = self.caller.call_tikzpicture(
             cell, formats, blocking=False)
 
         # TODO: store LaTeX content of environment (with Jinja replacements)
