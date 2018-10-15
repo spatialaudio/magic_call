@@ -59,7 +59,7 @@ class Caller:
         # TODO: add_done_callback to cleanup() tempdir when all are done?
 
         if blocking:
-            results = [r.future.result() for r in results]
+            results = [r.result() for r in results]
 
         # TODO: if both formats and files is None -> return None
 
@@ -126,8 +126,8 @@ class Caller:
         task_create = self._scheduler.create_task(
                 self._create, source_bytes, task_dir,
                 stem=_BASENAME, suffix=suffix)
-
-        return self._recurse_chains(task_create, suffix, chains)
+        tasks = self._recurse_chains(task_create, suffix, chains)
+        return [task.future for task in tasks]
 
     def _recurse_chains(self, source_task, suffix, chains):
         target_files = []

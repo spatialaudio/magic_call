@@ -11,6 +11,11 @@ class Scheduler:
     def __init__(self, max_workers=None):
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
+    def list_of_futures2future_of_list(self, futures):
+        return self.executor.submit(
+                lambda futures: [f.result() for f in futures],
+                futures)
+
     def create_task(self, function, *args, **kwargs):
         """
 

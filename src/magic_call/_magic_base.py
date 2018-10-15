@@ -27,6 +27,7 @@ def flatten_formats(formats):
             sizes.append(len(item))
             flattened_formats.extend(item)
         else:
+            assert False
             sizes.append(-1)
             flattened_formats.append(item)
     return flattened_formats, sizes
@@ -37,12 +38,12 @@ def unflatten_results(results, sizes, caller):
     nested_results = []
     for size in sizes:
         if size == -1:
+            assert False
             nested_results.append(results.pop(0))
         else:
-            task = caller._scheduler.create_task(
-                    lambda _, deps: [d.future.result() for d in deps],
+            future = caller._scheduler.list_of_futures2future_of_list(
                     results[:size])
-            nested_results.append(task.future)
+            nested_results.append(future)
             results = results[size:]
     return nested_results
 
