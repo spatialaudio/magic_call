@@ -9,6 +9,43 @@ _MIME_TYPES = {
     'pdf': 'application/pdf',
 }
 
+def flatten_formats(formats):
+    """
+
+    In the Jupyter notebook, we can have multiple outputs with multiple
+    alternative formats each, i.e. a nested list of formats.
+
+    This functions creates a flat list from them and some information to
+    un-flatten them again.
+
+    """
+    flattened_formats = []
+    sizes = []
+    for item in formats:
+        if isinstance(item, (tuple, list)):
+            assert len(item) != 0  # TODO: can we handle this?
+            sizes.append(len(item))
+            flattened_formats.extend(item)
+        else:
+            sizes.append(-1)
+            flattened_formats.append(item)
+    return flattened_formats, sizes
+
+
+def unflatten_results(results, sizes, caller):
+    results = results.copy()
+    nested_results = []
+    for size in sizes:
+        if size == -1:
+            nested_results.append(results.pop(0))
+        else:
+            task = caller._scheduler.create_task(
+                    lambda _, deps: [d.future.result() for d in deps],
+                    results[:size])
+            nested_results.append(task.future)
+            results = results[size:]
+    return nested_results
+
 
 # TODO: does this need to be public?
 def publish(formats, results):
@@ -119,7 +156,7 @@ def check_display(args):
         if args.display:
             raise TypeError(
                 '--display and --no-display are mutually exclusive')
-        return [[]]
+        return []
     if args.display:
         formats = []
         for disp in args.display:

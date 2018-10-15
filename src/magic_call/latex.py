@@ -97,10 +97,9 @@ class Caller(_base.Caller):
             source,
             r'\end{document}',
         ])
-        return self.call(document, formats, files, blocking)
+        return self.call(document, formats, files, blocking=blocking)
 
-    def call_tikzpicture(self, source, formats=(), files=(),
-                               blocking=True):
+    def call_tikzpicture(self, source, formats=(), files=(), blocking=True):
         tikzpicture = '\n'.join([
             r'\begin{tikzpicture}',
             source,

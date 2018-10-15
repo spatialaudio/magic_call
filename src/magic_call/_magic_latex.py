@@ -130,8 +130,20 @@ class CallLatex(magic.Magics):
         # TODO: get formats
         #formats = ['svg']
         formats = [['svg', 'pdf', 'png']]
-        results = self.caller.call(cell, formats, blocking=False)
-        base.publish(formats, results)
+
+        displays = []
+        for format in formats:
+            displays.append(base.publish_empty(format))
+
+        flat_formats, sizes = base.flatten_formats(formats)
+
+        results = self.caller.call(
+                cell, flat_formats, files=(), blocking=False)
+
+        results = base.unflatten_results(results, sizes, self.caller)
+
+        for disp, output, format in zip(displays, results, formats):
+            output.add_done_callback(base.publish_update(disp, format))
 
     @base.arguments_default
     @base.arguments_display_save
@@ -161,8 +173,12 @@ class CallLatex(magic.Magics):
         # TODO: Jinja
         # TODO: store Jinja result to file if requested
 
+        flat_formats, sizes = base.flatten_formats(formats)
+
         results = self.caller.call_standalone(
-            cell, formats, files, blocking=False)
+            cell, flat_formats, files, blocking=False)
+
+        results = base.unflatten_results(results, sizes, self.caller)
 
         for disp, output, format in zip(displays, results, formats):
             output.add_done_callback(base.publish_update(disp, format))
@@ -187,12 +203,20 @@ class CallLatex(magic.Magics):
         #formats = ['svg']
         formats = [['svg', 'pdf', 'png']]
 
+        displays = []
+        for format in formats:
+            displays.append(base.publish_empty(format))
+
+        flat_formats, sizes = base.flatten_formats(formats)
+
         results = self.caller.call_tikzpicture(
-            cell, formats, blocking=False)
+            cell, flat_formats, files=(), blocking=False)
+
+        results = base.unflatten_results(results, sizes, self.caller)
 
         # TODO: store LaTeX content of environment (with Jinja replacements)
 
-        base.publish(formats, results)
+        for disp, output, format in zip(displays, results, formats):
+            output.add_done_callback(base.publish_update(disp, format))
 
         # TODO: return something? probably for debugging?
-        return None

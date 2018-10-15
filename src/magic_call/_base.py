@@ -26,24 +26,10 @@ class Caller:
         self.env = env
         self._scheduler = _scheduler.Scheduler(max_workers)
 
-    def call(self, source, formats=(), files=(), blocking=True):
-        if isinstance(formats, str):
-            formats = [formats]
-            single_format = True
-        else:
-            single_format = False
+    def call(self, source, formats=None, files=None, *, blocking=True):
+        # TODO: if both formats and files is None -> return None
 
-        flattened_formats = []
-        sizes = []
-        for item in formats:
-            if isinstance(item, (tuple, list)):
-                sizes.append(len(item))
-                flattened_formats.extend(item)
-            else:
-                sizes.append(-1)
-                flattened_formats.append(item)
-
-        chains = self._formats_and_files2chains(flattened_formats, files)
+        chains = self._formats_and_files2chains(formats, files)
         # TODO: check if source is already bytes
         source_bytes = source.encode()
 
@@ -70,32 +56,17 @@ class Caller:
         flat_results.sort()  # Restore original order of formats
         results = [data for _, data in flat_results]
 
-        nested_results = []
+        # TODO: add_done_callback to cleanup() tempdir when all are done?
+
         if blocking:
             results = [r.future.result() for r in results]
-            for size in sizes:
-                if size == -1:
-                    nested_results.append(results.pop(0))
-                else:
-                    nested_results.append(results[:size])
-                    results = results[size:]
-        else:
-            for size in sizes:
-                if size == -1:
-                    nested_results.append(results.pop(0))
-                else:
-                    task = self._scheduler.create_task(
-                            lambda _, deps: [d.future.result() for d in deps],
-                            results[:size])
-                    nested_results.append(task.future)
-                    results = results[size:]
 
-        results = nested_results
+        # TODO: if both formats and files is None -> return None
 
-        if single_format:
-            results, = results
+        # TODO: if one of format/files is None -> return a single list
 
-        # TODO: add_done_callback to cleanup() tempdir when all are done?
+        # TODO: if both formats and files is given -> return 2 lists
+
         return results
 
     def get_default_chains(self):
@@ -218,6 +189,10 @@ class Caller:
 
     def _formats_and_files2chains(self, formats, files):
         """Convert formats to full tool chains."""
+        if isinstance(formats, str):
+            raise TypeError('List of formats expected, not a single string')
+        if isinstance(files, str):
+            raise TypeError('List of file names expected, not a single string')
         # NB: Calling this every time is horribly inefficient, but the list of
         # commands is typically very short, so it doesn't take much time.
         default_chains = self.get_default_chains()
