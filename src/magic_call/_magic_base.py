@@ -1,4 +1,5 @@
 import shlex
+import urllib
 
 import IPython.core.magic_arguments as ma
 from IPython.display import publish_display_data, display
@@ -82,26 +83,46 @@ def publish(formats, results):
 
 
 def publish_empty(formats):
-    if isinstance(formats, str):
-        formats = [formats]
+    assert not isinstance(formats, str)
     data = {}
     for format in formats:
         data[_MIME_TYPES[format]] = ''
     return display(data, raw=True, display_id=True)
 
 
-def publish_update(disp, format):
-    if not isinstance(format, (list, tuple)):
-        format = [format]
+def publish_data(disp, format):
+    assert isinstance(format, (list, tuple))
 
     def callback(future):
         output = future.result()
-        if not isinstance(output, (list, tuple)):
-            output = [output]
+        assert isinstance(output, (list, tuple))
         data = {}
         for f, o in zip(format, output):
             data[_MIME_TYPES[f]] = o
         disp.update(data, raw=True)
+
+    return callback
+
+
+def publish_creating_file(name):
+    message = {
+        'text/plain': 'Creating {!r} ...'.format(name),
+        # TODO: what if filename contains '`'?
+        'text/markdown': 'Creating `{}` ...'.format(name),
+    }
+    return display(message, raw=True, display_id=True)
+
+
+def publish_file(disp):
+
+    def callback(future):
+        name = str(future.result())
+        message = {
+            'text/plain': 'Creating {!r}'.format(name),
+            'text/markdown': 'Creating [{}]({})'.format(
+                name, urllib.parse.quote(name)),
+        }
+        disp.update(message, raw=True)
 
     return callback
 

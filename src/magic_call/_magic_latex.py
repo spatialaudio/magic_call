@@ -137,13 +137,13 @@ class CallLatex(magic.Magics):
 
         flat_formats, sizes = base.flatten_formats(formats)
 
-        results = self.caller.call(
+        results, file_results = self.caller.call(
                 cell, flat_formats, files=(), blocking=False)
 
         results = base.unflatten_results(results, sizes, self.caller)
 
         for disp, output, format in zip(displays, results, formats):
-            output.add_done_callback(base.publish_update(disp, format))
+            output.add_done_callback(base.publish_data(disp, format))
 
     @base.arguments_default
     @base.arguments_display_save
@@ -164,24 +164,36 @@ class CallLatex(magic.Magics):
 
         formats = base.check_display(args)
 
-        displays = []
+        # TODO: display data and file names intermixed in the given order?
+
+        format_handles = []
         for format in formats:
-            displays.append(base.publish_empty(format))
+            format_handles.append(base.publish_empty(format))
+
+        # TODO writing vs. overwriting?
 
         files = args.save
+        file_handles = []
+        for file in files:
+            file_handles.append(base.publish_creating_file(file))
 
         # TODO: Jinja
         # TODO: store Jinja result to file if requested
 
-        flat_formats, sizes = base.flatten_formats(formats)
+        flat_formats, nested_lengths = base.flatten_formats(formats)
 
-        results = self.caller.call_standalone(
+        format_results, file_results = self.caller.call_standalone(
             cell, flat_formats, files, blocking=False)
 
-        results = base.unflatten_results(results, sizes, self.caller)
+        format_results = base.unflatten_results(
+                format_results, nested_lengths, self.caller)
 
-        for disp, output, format in zip(displays, results, formats):
-            output.add_done_callback(base.publish_update(disp, format))
+        for handle, future, format in zip(format_handles, format_results,
+                                          formats):
+            future.add_done_callback(base.publish_data(handle, format))
+
+        for handle, future in zip(file_handles, file_results):
+            future.add_done_callback(base.publish_file(handle))
 
     # TODO: magic for pstricks?
 
@@ -209,14 +221,15 @@ class CallLatex(magic.Magics):
 
         flat_formats, sizes = base.flatten_formats(formats)
 
-        results = self.caller.call_tikzpicture(
+        format_results, file_results = self.caller.call_tikzpicture(
             cell, flat_formats, files=(), blocking=False)
 
-        results = base.unflatten_results(results, sizes, self.caller)
+        format_results = base.unflatten_results(format_results, sizes,
+                                                self.caller)
 
         # TODO: store LaTeX content of environment (with Jinja replacements)
 
-        for disp, output, format in zip(displays, results, formats):
-            output.add_done_callback(base.publish_update(disp, format))
+        for disp, output, format in zip(displays, format_results, formats):
+            output.add_done_callback(base.publish_data(disp, format))
 
         # TODO: return something? probably for debugging?

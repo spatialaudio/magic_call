@@ -88,7 +88,7 @@ class Caller(_base.Caller):
         _base.Caller.__init__(self, commands, env=env)
         self.preambles = []
 
-    def call_standalone(self, source, formats=(), files=(), tikz=False,
+    def call_standalone(self, source, formats=None, files=None, tikz=False,
                         blocking=True):
         document = '\n'.join([
             standalone_header(tikz=tikz),
@@ -99,7 +99,7 @@ class Caller(_base.Caller):
         ])
         return self.call(document, formats, files, blocking=blocking)
 
-    def call_tikzpicture(self, source, formats=(), files=(), blocking=True):
+    def call_tikzpicture(self, source, formats=None, files=None, blocking=True):
         tikzpicture = '\n'.join([
             r'\begin{tikzpicture}',
             source,

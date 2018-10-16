@@ -1,3 +1,4 @@
+import collections as _collections
 from pathlib import Path as _Path
 import shlex as _shlex
 import shutil as _shutil
@@ -32,15 +33,15 @@ class Caller:
     def call(self, source, formats=None, files=None, *, blocking=True):
         # TODO: if both formats and files is None -> return None
 
-        chains = self._formats_and_files2chains(formats, files)
+        chains = self._formats2chains(formats, files)
         # TODO: check if source is already bytes
         source_bytes = source.encode()
 
         # TODO: make grouping more obvious? factor out?
-        # Group by first format in chain, typically pdf or dvi
-        groups = {}
+        # Group by first format in chain (i.e. the "creator" format)
+        groups = _collections.defaultdict(list)
         for i, chain in enumerate(chains):
-            groups.setdefault(chain[0], []).append((i, chain[1:]))
+            groups[chain[0]].append((i, chain[1:]))
         tasks = []
         indices = []  # Positions in the original list of formats
         for dst, numbered_chains in groups.items():
@@ -53,24 +54,29 @@ class Caller:
             nested_results.append(
                     self._run_in_tempdir(source_bytes, dst, chains))
 
-        flat_results = []
+        results = []
         for idx, result in zip(indices, nested_results):
-            flat_results.extend(zip(idx, result))
-        flat_results.sort()  # Restore original order of formats
-        results = [data for _, data in flat_results]
+            results.extend(zip(idx, result))
+        results.sort()  # Restore original order of formats
+        results = [task for _, task in results]  # Undecorate
 
         # TODO: add_done_callback to cleanup() tempdir when all are done?
 
         if blocking:
+            # Wait for futures
             results = [r.result() for r in results]
 
-        # TODO: if both formats and files is None -> return None
+        number_of_formats = len(formats or ())
+        format_results = results[:number_of_formats]
+        file_results = results[number_of_formats:]
 
-        # TODO: if one of format/files is None -> return a single list
-
-        # TODO: if both formats and files is given -> return 2 lists
-
-        return results
+        if (formats, files) == (None, None):
+            return None
+        if files is None:
+            return format_results
+        if formats is None:
+            return file_results
+        return format_results, file_results
 
     def get_default_chains(self):
         """Populate dictionary of default tool chains by suffix.
@@ -178,19 +184,23 @@ class Caller:
                 decorated_tasks.extend(zip(idx, result))
             decorated_tasks.sort()  # Restore original order of chains
 
-        all_tasks = [task for _, task in decorated_tasks]
+        data_tasks = [task for _, task in decorated_tasks]
 
-        if target_files:
-            # NB: We are moving files away, but we cannot do it before all
+        file_tasks = []
+        # NB: All but the last file are copied ...
+        for file in target_files[:-1]:
+            file_tasks.append(self.scheduler.create_task(
+                    copy_file, source_task, path=file))
+        # ... the last (and probably only) file can be moved.
+        for file in target_files[-1:]:
+            # NB: We are moving the file away, but we cannot do it before all
             # tasks in this stage are finished. So we add them as dependencies.
-            task_move = self.scheduler.create_task(
-                    copy_and_move_files, source_task, *all_tasks,
-                    targets=target_files)
-            # TODO: add all move tasks to a separate result list
+            file_tasks.append(self.scheduler.create_task(
+                    move_file, source_task, *data_tasks, *file_tasks,
+                    path=file))
+        return data_tasks + file_tasks
 
-        return all_tasks
-
-    def _formats_and_files2chains(self, formats, files):
+    def _formats2chains(self, formats, files):
         """Convert formats to full tool chains."""
         if isinstance(formats, str):
             raise TypeError('List of formats expected, not a single string')
@@ -210,12 +220,12 @@ class Caller:
             return prefix + chain
 
         chains = []
-        for format in formats:
+        for format in formats or ():
             suffixes = ['.' + s for s in format.split('.')]
             if set(suffixes) & {'.'}:
                 raise ValueError('Invalid format: ' + repr(format))
             chains.append(expand_chain(suffixes))
-        for file in files:
+        for file in files or ():
             file = _Path(file)
             # Extract formats from given files
             suffixes = file.suffixes
@@ -288,26 +298,15 @@ def read_bytes(task, source):
     return source.path.read_bytes()
 
 
-def copy_and_move_files(task, source, *dependencies):
-    """Move a file from the temporary dir to current working dir.
-
-    If multiple target file names are given, the file is copied
-    to all but the last location and then moved to the final
-    location.
-
-    This has to be done after all converters are finished with the
-    source file.  This should be taken care of by the dependencies.
-
-    """
+def copy_file(task, source):
     # TODO: Exception might be raised on Windows if target file exists!?!
-
-    # NB: All but the last file are copied ...
-    for target_file in task.targets[:-1]:
-        _shutil.copy2(source.path, target_file)
-    # ... the last (and probably only) file can be moved.
-    for target_file in task.targets[-1:]:
-        _shutil.move(source.path, target_file)
-
-    # TODO: return something else? Or nothing?
+    _shutil.copy2(source.path, task.path)
     # NB: Exceptions are only shown if someone calls result() on this!
-    return task.targets
+    return task.path
+
+
+def move_file(task, source, *dependencies):
+    # TODO: Exception might be raised on Windows if target file exists!?!
+    _shutil.move(source.path, task.path)
+    # NB: Exceptions are only shown if someone calls result() on this!
+    return task.path
