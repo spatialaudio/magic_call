@@ -1,5 +1,5 @@
-"""An abstraction around concurrent.futures.ThreadPoolExecutor."""
-from concurrent.futures import ThreadPoolExecutor
+"""An abstraction around `concurrent.futures.ThreadPoolExecutor`."""
+from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
 
 
 class Task:
@@ -9,12 +9,7 @@ class Task:
 class Scheduler:
 
     def __init__(self, max_workers=None):
-        self.executor = ThreadPoolExecutor(max_workers=max_workers)
-
-    def list_of_futures2future_of_list(self, futures):
-        return self.executor.submit(
-                lambda futures: [f.result() for f in futures],
-                futures)
+        self._executor = _ThreadPoolExecutor(max_workers=max_workers)
 
     def create_task(self, function, *args, **kwargs):
         """
@@ -30,11 +25,11 @@ class Scheduler:
         for k, v in kwargs.items():
             setattr(task, k, v)
         assert not hasattr(task, 'future')
-        task.future = self.executor.submit(wrap_task, function, task, *args)
+        task.future = self._executor.submit(_wrapper, function, task, *args)
         return task
 
 
-def wrap_task(function, task, *args, **kwargs):
+def _wrapper(function, task, *args, **kwargs):
     assert not hasattr(task, '_dependencies')
     task._dependencies = []
     assert '_dependencies' not in kwargs

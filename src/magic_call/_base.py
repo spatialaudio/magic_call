@@ -7,6 +7,9 @@ import tempfile as _tempfile
 from . import _scheduler
 
 
+# TODO: force formats to lowercase?
+
+
 _BASENAME = 'magic_call'
 
 
@@ -24,7 +27,7 @@ class Caller:
         """
         self.commands = list(commands)
         self.env = env
-        self._scheduler = _scheduler.Scheduler(max_workers)
+        self.scheduler = _scheduler.Scheduler(max_workers)
 
     def call(self, source, formats=None, files=None, *, blocking=True):
         # TODO: if both formats and files is None -> return None
@@ -122,8 +125,8 @@ class Caller:
         # TODO: make sure tempdir gets cleaned up?
         # TODO: how do we know when moving files is finished?
 
-        task_dir = self._scheduler.create_task(create_temporary_directory)
-        task_create = self._scheduler.create_task(
+        task_dir = self.scheduler.create_task(create_temporary_directory)
+        task_create = self.scheduler.create_task(
                 self._create, source_bytes, task_dir,
                 stem=_BASENAME, suffix=suffix)
         tasks = self._recurse_chains(task_create, suffix, chains)
@@ -145,7 +148,7 @@ class Caller:
                         function = read_text
                     else:
                         function = read_bytes
-                    task_read = self._scheduler.create_task(
+                    task_read = self.scheduler.create_task(
                             function, source_task)
                 # NB: There is only one task reading the file, but several
                 # references to it might be appended to the results.
@@ -167,7 +170,7 @@ class Caller:
         if tasks:
             nested_results = []
             for dst, chains in tasks:
-                converter_task = self._scheduler.create_task(
+                converter_task = self.scheduler.create_task(
                         self._convert, source_task, suffix=dst)
                 nested_results.append(
                         self._recurse_chains(converter_task, dst, chains))
@@ -180,7 +183,7 @@ class Caller:
         if target_files:
             # NB: We are moving files away, but we cannot do it before all
             # tasks in this stage are finished. So we add them as dependencies.
-            task_move = self._scheduler.create_task(
+            task_move = self.scheduler.create_task(
                     copy_and_move_files, source_task, *all_tasks,
                     targets=target_files)
             # TODO: add all move tasks to a separate result list

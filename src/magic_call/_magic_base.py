@@ -3,11 +3,16 @@ import shlex
 import IPython.core.magic_arguments as ma
 from IPython.display import publish_display_data, display
 
+# TODO: support output formats txt and tex?
+# TODO: support jpe?g
+# TODO: force formats to lowercase?
+
 _MIME_TYPES = {
     'png': 'image/png',
     'svg': 'image/svg+xml',
     'pdf': 'application/pdf',
 }
+
 
 def flatten_formats(formats):
     """
@@ -16,35 +21,34 @@ def flatten_formats(formats):
     alternative formats each, i.e. a nested list of formats.
 
     This functions creates a flat list from them and some information to
-    un-flatten them again.
+    un-flatten their results again.
 
     """
     flattened_formats = []
-    sizes = []
+    nested_lengths = []
     for item in formats:
-        if isinstance(item, (tuple, list)):
-            assert len(item) != 0  # TODO: can we handle this?
-            sizes.append(len(item))
-            flattened_formats.extend(item)
-        else:
-            assert False
-            sizes.append(-1)
-            flattened_formats.append(item)
-    return flattened_formats, sizes
+        assert not isinstance(item, str)
+        assert len(item) != 0
+        flattened_formats.extend(item)
+        nested_lengths.append(len(item))
+    return flattened_formats, nested_lengths
 
 
-def unflatten_results(results, sizes, caller):
+def unflatten_results(results, nested_lengths, caller):
+    """
+
+    Turn a flat list of futures into a list of (fewer) futures containing
+    sub-lists of the results of the original futures.
+
+    """
     results = results.copy()
     nested_results = []
-    for size in sizes:
-        if size == -1:
-            assert False
-            nested_results.append(results.pop(0))
-        else:
-            future = caller._scheduler.list_of_futures2future_of_list(
-                    results[:size])
-            nested_results.append(future)
-            results = results[size:]
+    for length in nested_lengths:
+        task = caller.scheduler.create_task(
+                lambda _, futures: [f.result() for f in futures],
+                results[:length])
+        nested_results.append(task.future)
+        results = results[length:]
     return nested_results
 
 
