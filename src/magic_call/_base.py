@@ -131,7 +131,7 @@ class Caller:
         # TODO: make sure tempdir gets cleaned up?
         # TODO: how do we know when moving files is finished?
 
-        task_dir = self.scheduler.create_task(create_temporary_directory)
+        task_dir = self.scheduler.create_task(_create_temporary_directory)
         task_create = self.scheduler.create_task(
                 self._create, source_bytes, task_dir,
                 stem=_BASENAME, suffix=suffix)
@@ -151,9 +151,9 @@ class Caller:
                     # TODO: more general mechanism to switch text/bytes
                     # Chain is finished, load data from file
                     if suffix == '.svg':
-                        function = read_text
+                        function = _read_text
                     else:
-                        function = read_bytes
+                        function = _read_bytes
                     task_read = self.scheduler.create_task(
                             function, source_task)
                 # NB: There is only one task reading the file, but several
@@ -190,13 +190,13 @@ class Caller:
         # NB: All but the last file are copied ...
         for file in target_files[:-1]:
             file_tasks.append(self.scheduler.create_task(
-                    copy_file, source_task, path=file))
+                    _copy_file, source_task, path=file))
         # ... the last (and probably only) file can be moved.
         for file in target_files[-1:]:
             # NB: We are moving the file away, but we cannot do it before all
             # tasks in this stage are finished. So we add them as dependencies.
             file_tasks.append(self.scheduler.create_task(
-                    move_file, source_task, *data_tasks, *file_tasks,
+                    _move_file, source_task, *data_tasks, *file_tasks,
                     path=file))
         return data_tasks + file_tasks
 
@@ -281,32 +281,39 @@ class Caller:
                     command, task.path.name),
                 process.stdout.decode(),
             ]))
-        # TODO: return something?
 
 
-def create_temporary_directory(task):
+def _create_temporary_directory(task):
     # NB: must be kept alive!
     task.tempdir = _tempfile.TemporaryDirectory(prefix=_BASENAME + '-')
     task.path = _Path(task.tempdir.name)
 
 
-def read_text(task, source):
+def _read_text(task, source):
     return source.path.read_text()
 
 
-def read_bytes(task, source):
+def _read_bytes(task, source):
     return source.path.read_bytes()
 
 
-def copy_file(task, source):
+def _copy_file(task, source):
     # TODO: Exception might be raised on Windows if target file exists!?!
     _shutil.copy2(source.path, task.path)
     # NB: Exceptions are only shown if someone calls result() on this!
     return task.path
 
 
-def move_file(task, source, *dependencies):
+def _move_file(task, source, *dependencies):
     # TODO: Exception might be raised on Windows if target file exists!?!
     _shutil.move(source.path, task.path)
     # NB: Exceptions are only shown if someone calls result() on this!
     return task.path
+
+
+def load_ipython_extension(ipython):
+    """Hook function called by IPython."""
+    # TODO: provide a list of all available sub-modules?
+    from IPython.core.error import UsageError
+    raise UsageError('Please use a specific sub-module, e.g.\n\n'
+                     '    %load_ext magic_call.latex')

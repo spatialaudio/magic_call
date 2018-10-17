@@ -1,6 +1,7 @@
 import shlex
 import urllib
 
+from IPython.core.error import UsageError
 import IPython.core.magic_arguments as ma
 from IPython.display import publish_display_data, display
 
@@ -13,6 +14,17 @@ _MIME_TYPES = {
     'svg': 'image/svg+xml',
     'pdf': 'application/pdf',
 }
+
+# text/plain
+# text/html
+# text/markdown
+# text/latex
+# application/json
+# application/javascript
+# application/pdf
+# image/png
+# image/jpeg
+# image/svg+xml
 
 
 def flatten_formats(formats):
@@ -106,9 +118,8 @@ def publish_data(disp, format):
 
 def publish_creating_file(name):
     message = {
-        'text/plain': 'Creating {!r} ...'.format(name),
-        # TODO: what if filename contains '`'?
-        'text/markdown': 'Creating `{}` ...'.format(name),
+        'text/plain': 'creating file: {!r}'.format(name),
+        'text/markdown': 'creating file: {}'.format(name),
     }
     return display(message, raw=True, display_id=True)
 
@@ -118,8 +129,8 @@ def publish_file(disp):
     def callback(future):
         name = str(future.result())
         message = {
-            'text/plain': 'Creating {!r}'.format(name),
-            'text/markdown': 'Creating [{}]({})'.format(
+            'text/plain': 'created file: {!r}'.format(name),
+            'text/markdown': 'created file: [{}]({})'.format(
                 name, urllib.parse.quote(name)),
         }
         disp.update(message, raw=True)
@@ -127,18 +138,27 @@ def publish_file(disp):
     return callback
 
 
-def arguments_default(func):
-    func = ma.argument('--load', help='load stuff')(func)
-    #func = ma.argument('--save', help='save stuff')(func)
-    #func = ma.argument('--format', help='select format(s)')(func)
-    #func = ma.kwds(epilog='I am the epilog.')(func)
-    return ma.magic_arguments()(func)
+#def arguments_default(func):
+#    func = ma.argument('--load', help='load stuff')(func)
+#    #func = ma.argument('--save', help='save stuff')(func)
+#    #func = ma.kwds(epilog='I am the epilog.')(func)
+#    return ma.magic_arguments()(func)
 
 
-def arguments_display_save(func):
+def arguments_display_save_assign(func):
+    func = ma.argument(
+        '--assign', nargs=2, action='append', default=[],
+        metavar=('FORMAT', 'VARIABLE'),
+        help=''
+        'Assigns data of the given format to the given variable. '
+        'Can be used multiple times, but each time only with a single format. '
+        # TODO:
+        'Implies --no-display '
+        '(if no --display option is used at the same time). '
+    )(func)
     func = ma.argument(
         '--save', metavar='FILENAME', action='append', default=[],
-        help=
+        help=''
         'Save the result to the given file name. '
         'The format is selected by the file suffix. '
         'This can be used repeatedly to save multiple files. '
@@ -146,12 +166,12 @@ def arguments_display_save(func):
     )(func)
     func = ma.argument(
         '-n', '--no-display', action='store_true',
-        help=
+        help=''
         "Don't display anything. "
     )(func)
     func = ma.argument(
         '-d', '--display', metavar='FORMAT', action='append', default=[],
-        help=
+        help=''
         'Select format(s) to display. '
         'Can be used repeatedly to generate multiple outputs. '
         'If no formats are selected, default values are used. '
@@ -173,22 +193,24 @@ def parse_arguments(func, line, cell=None):
     return args
 
 
-def check_display(args):
+def check_display_assign_save(args):
     # TODO: DOC:
     # semicolon: multiple outputs
     # comma: one output with multiple alternatives
     # dot: specify tool chain
-    if args.no_display:
-        if args.display:
-            raise TypeError(
-                '--display and --no-display are mutually exclusive')
-        return []
+
+    display_formats = []
+    if args.display and args.no_display:
+        raise UsageError('--display and --no-display are mutually exclusive')
     if args.display:
-        formats = []
         for disp in args.display:
             for semicolon_part in disp.split(';'):
-                formats.append(semicolon_part.split(','))
-        return formats
+                display_formats.append(semicolon_part.split(','))
     # TODO: get default formats from config
-    formats = [['png']]
-    return formats
+    display_formats = [['png']]
+
+    # TODO: error if --no-display and no --assign and no --save
+
+    assign_formats = []  # TODO
+
+    return display_formats, assign_formats, args.save

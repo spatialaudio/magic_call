@@ -54,6 +54,16 @@ from . import _magic_base as base
 #template.render(name='Tom')
 
 
+def arguments_preamble(func):
+    func = base.ma.argument(
+        '--preamble', metavar='FILENAME', action='append', default=[],
+        help=
+        'Load a file to be used as part of the preamble. '
+        'This can be used repeatedly to load multiple files. '
+    )(func)
+    return func
+
+
 @magic.magics_class
 class CallLatex(magic.Magics):
     """
@@ -145,26 +155,20 @@ class CallLatex(magic.Magics):
         for disp, output, format in zip(displays, results, formats):
             output.add_done_callback(base.publish_data(disp, format))
 
-    @base.arguments_default
-    @base.arguments_display_save
-    @magic.line_cell_magic
-    def call_latex_standalone(self, line, cell=None):
-        """Call LaTeX using the *standalone* documentclass.
-
-        """
+    @base.ma.magic_arguments()
+    @base.arguments_display_save_assign
+    @arguments_preamble
+    @magic.cell_magic
+    def call_latex_standalone(self, line, cell):
+        """Call LaTeX using the *standalone* documentclass."""
 
         # TODO: argument for loading preamble from file (without storing in
         #       instance)
 
         args = base.parse_arguments(self.call_latex_standalone, line, cell)
 
-        if cell is None:
-            # TODO
-            return line
-
-        formats = base.check_display(args)
-
-        # TODO: display data and file names intermixed in the given order?
+        # TODO: check assign_formats
+        formats, assign_formats, files = base.check_display_assign_save(args)
 
         format_handles = []
         for format in formats:
@@ -172,7 +176,6 @@ class CallLatex(magic.Magics):
 
         # TODO writing vs. overwriting?
 
-        files = args.save
         file_handles = []
         for file in files:
             file_handles.append(base.publish_creating_file(file))
@@ -181,6 +184,8 @@ class CallLatex(magic.Magics):
         # TODO: store Jinja result to file if requested
 
         flat_formats, nested_lengths = base.flatten_formats(formats)
+
+        # TODO: intercept .tex data/files
 
         format_results, file_results = self.caller.call_standalone(
             cell, flat_formats, files, blocking=False)

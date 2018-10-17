@@ -110,12 +110,10 @@ class Caller(_base.Caller):
 
 
 def load_ipython_extension(ipython):
-    """Hook function for IPython.
+    """Hook function called by IPython.
 
     The extension can be loaded via ``%load_ext magic_call.latex` or
     it can be configured to be autoloaded by IPython at startup time.
-
-    If you don't want to use IPython magics, just ignore this function.
 
     """
     from . import _magic_latex
