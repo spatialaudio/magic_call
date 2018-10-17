@@ -1,4 +1,8 @@
+import os
 from subprocess import check_output
+import sys
+
+sys.path.insert(0, os.path.abspath('../src'))
 
 extensions = [
     'sphinx.ext.autodoc',

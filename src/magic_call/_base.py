@@ -81,7 +81,7 @@ class Caller:
     def get_default_chains(self):
         """Populate dictionary of default tool chains by suffix.
 
-        This works through the current list of `commands` to calculate
+        This works through the current list of *commands* to calculate
         the "best" tool chain for each possible suffix.
 
         """
