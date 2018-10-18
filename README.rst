@@ -23,6 +23,9 @@ e.g. Score + MIDI, multiple Metapost graphics
 SVG to PNG:
 inkscape filename.svg --export-png=filename.png
 
+img2pdf:
+https://gitlab.mister-muffin.de/josch/img2pdf
+
 
 Asymptote
 ^^^^^^^^^
