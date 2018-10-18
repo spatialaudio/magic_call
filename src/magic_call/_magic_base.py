@@ -1,3 +1,4 @@
+import pathlib
 import shlex
 import urllib
 
@@ -27,6 +28,51 @@ _MIME_TYPES = {
 # image/svg+xml
 
 
+class Handler:
+
+    def __init__(self, args, scheduler):
+        self.scheduler = scheduler
+        self._nested_formats, assign_formats, self.files = \
+            check_display_assign_save(args)
+
+        self._format_handles = []
+        for format in self._nested_formats:
+            self._format_handles.append(publish_empty(format))
+
+        # TODO writing vs. overwriting?
+
+        self._file_handles = []
+        for file in self.files:
+            self._file_handles.append(publish_creating_file(file))
+
+        self.formats = []
+        self._nested_lengths = []
+        for item in self._nested_formats:
+            assert not isinstance(item, str)
+            assert len(item) != 0
+            self.formats.extend(item)
+            self._nested_lengths.append(len(item))
+
+    def update(self, format_results, file_results):
+        format_results = format_results.copy()
+        nested_results = []
+        for length in self._nested_lengths:
+            task = self.scheduler.create_task(
+                    lambda _, futures: [f.result() for f in futures],
+                    format_results[:length])
+            nested_results.append(task.future)
+            format_results = format_results[length:]
+
+        for handle, future, format in zip(self._format_handles, nested_results,
+                                          self._nested_formats):
+            future.add_done_callback(publish_data(handle, format))
+
+        for handle, future in zip(self._file_handles, file_results):
+            future.add_done_callback(publish_file(handle))
+
+        # TODO: assign
+
+
 def flatten_formats(formats):
     """
 
@@ -37,32 +83,15 @@ def flatten_formats(formats):
     un-flatten their results again.
 
     """
-    flattened_formats = []
-    nested_lengths = []
-    for item in formats:
-        assert not isinstance(item, str)
-        assert len(item) != 0
-        flattened_formats.extend(item)
-        nested_lengths.append(len(item))
-    return flattened_formats, nested_lengths
 
 
-def unflatten_results(results, nested_lengths, caller):
+def unflatten_results(results, nested_lengths, scheduler):
     """
 
     Turn a flat list of futures into a list of (fewer) futures containing
     sub-lists of the results of the original futures.
 
     """
-    results = results.copy()
-    nested_results = []
-    for length in nested_lengths:
-        task = caller.scheduler.create_task(
-                lambda _, futures: [f.result() for f in futures],
-                results[:length])
-        nested_results.append(task.future)
-        results = results[length:]
-    return nested_results
 
 
 # TODO: does this need to be public?
@@ -138,14 +167,15 @@ def publish_file(disp):
     return callback
 
 
-#def arguments_default(func):
-#    func = ma.argument('--load', help='load stuff')(func)
-#    #func = ma.argument('--save', help='save stuff')(func)
-#    #func = ma.kwds(epilog='I am the epilog.')(func)
-#    return ma.magic_arguments()(func)
-
-
-def arguments_display_save_assign(func):
+def arguments_display_assign_save(func):
+    func = ma.argument(
+        '--save', metavar='FILENAME', action='append', default=[],
+        help=''
+        'Save the result to the given file name. '
+        'The format is selected by the file suffix. '
+        'This can be used repeatedly to save multiple files. '
+        'If a file with the same name already exists, it is overwritten! '
+    )(func)
     func = ma.argument(
         '--assign', nargs=2, action='append', default=[],
         metavar=('FORMAT', 'VARIABLE'),
@@ -155,14 +185,6 @@ def arguments_display_save_assign(func):
         # TODO:
         'Implies --no-display '
         '(if no --display option is used at the same time). '
-    )(func)
-    func = ma.argument(
-        '--save', metavar='FILENAME', action='append', default=[],
-        help=''
-        'Save the result to the given file name. '
-        'The format is selected by the file suffix. '
-        'This can be used repeatedly to save multiple files. '
-        'If a file with the same name already exists, it is overwritten! '
     )(func)
     func = ma.argument(
         '-n', '--no-display', action='store_true',
@@ -178,19 +200,33 @@ def arguments_display_save_assign(func):
         'Use --no-display to display nothing. '
         'TODO: Explain semicolon, comma, dot.'
     )(func)
+    func = ma.argument(
+        'input_file', metavar='FILENAME', nargs='?',
+        help=''
+        'Load source text from the given file. '
+        'This is only allowed when used as a line magic. '
+        'The cell magic uses the cell content as source text. '
+    )(func)
     return func
 
 
 def parse_arguments(func, line, cell=None):
-
     # NB: IPython's parse_argstring() keeps quotes, shlex removes them.
     # See https://github.com/ipython/ipython/issues/2001
-    args = func.parser.parse_args(shlex.split(line))
+    return func.parser.parse_args(shlex.split(line))
 
-    # TODO if line magic, there is no save
+
+def check_source(args, cell):
     if cell is None:
-        print('I am a line magic')
-    return args
+        if not args.input_file:
+            raise UsageError(
+                    'Positional argument is required in line magic')
+        cell = pathlib.Path(args.input_file).read_text()
+    else:
+        if args.input_file:
+            raise UsageError(
+                    'Positional argument is not allowed in cell magic')
+    return cell
 
 
 def check_display_assign_save(args):
@@ -206,8 +242,9 @@ def check_display_assign_save(args):
         for disp in args.display:
             for semicolon_part in disp.split(';'):
                 display_formats.append(semicolon_part.split(','))
-    # TODO: get default formats from config
-    display_formats = [['png']]
+    else:
+        # TODO: get default formats from config
+        display_formats = [['png']]
 
     # TODO: error if --no-display and no --assign and no --save
 

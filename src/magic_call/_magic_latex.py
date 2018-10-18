@@ -72,7 +72,6 @@ class CallLatex(magic.Magics):
 
         get_ipython().magics_manager.registry['CallLatex']
 
-
     """
     # TODO: use InlineBackend.figure_formats?
     # TODO: cfg = InlineBackend.instance(parent=shell)
@@ -128,113 +127,69 @@ class CallLatex(magic.Magics):
 
     # TODO: non-option arguments are added to preamble?
 
+    @base.ma.magic_arguments()
+    @base.arguments_display_assign_save
+    @arguments_preamble
     @magic.line_cell_magic
     def call_latex(self, line, cell=None):
         """Call LaTeX and pass the contents of the current cell.
 
         """
-        if cell is None:
-            # TODO
-            return line
-
-        # TODO: get formats
-        #formats = ['svg']
-        formats = [['svg', 'pdf', 'png']]
-
-        displays = []
-        for format in formats:
-            displays.append(base.publish_empty(format))
-
-        flat_formats, sizes = base.flatten_formats(formats)
-
+        args = base.parse_arguments(self.call_latex, line, cell)
+        source = base.check_source(args, cell)
+        handler = base.Handler(args, self.caller.scheduler)
         results, file_results = self.caller.call(
-                cell, flat_formats, files=(), blocking=False)
-
-        results = base.unflatten_results(results, sizes, self.caller)
-
-        for disp, output, format in zip(displays, results, formats):
-            output.add_done_callback(base.publish_data(disp, format))
+                source, handler.formats, handler.files, blocking=False)
+        handler.update(results, file_results)
 
     @base.ma.magic_arguments()
-    @base.arguments_display_save_assign
+    @base.arguments_display_assign_save
     @arguments_preamble
-    @magic.cell_magic
-    def call_latex_standalone(self, line, cell):
+    @magic.line_cell_magic
+    def call_latex_standalone(self, line, cell=None):
         """Call LaTeX using the *standalone* documentclass."""
-
-        # TODO: argument for loading preamble from file (without storing in
-        #       instance)
-
         args = base.parse_arguments(self.call_latex_standalone, line, cell)
 
-        # TODO: check assign_formats
-        formats, assign_formats, files = base.check_display_assign_save(args)
+        # TODO: check argument for loading preamble from file (without storing
+        #       in instance)
 
-        format_handles = []
-        for format in formats:
-            format_handles.append(base.publish_empty(format))
+        source = base.check_source(args, cell)
 
-        # TODO writing vs. overwriting?
-
-        file_handles = []
-        for file in files:
-            file_handles.append(base.publish_creating_file(file))
+        # TODO: better name
+        handler = base.Handler(args, self.caller.scheduler)
 
         # TODO: Jinja
         # TODO: store Jinja result to file if requested
 
-        flat_formats, nested_lengths = base.flatten_formats(formats)
+        # TODO: don't use Jinja in line magic?
 
         # TODO: intercept .tex data/files
 
         format_results, file_results = self.caller.call_standalone(
-            cell, flat_formats, files, blocking=False)
+            source, handler.formats, handler.files, blocking=False)
 
-        format_results = base.unflatten_results(
-                format_results, nested_lengths, self.caller)
+        # TODO: add .tex content
 
-        for handle, future, format in zip(format_handles, format_results,
-                                          formats):
-            future.add_done_callback(base.publish_data(handle, format))
+        # TODO: allow tex and txt for display
+        # TODO: tex: text/latex + dummy HTML
+        # TODO: txt: text/plain
+        # TODO: disallow txt as file suffix?
 
-        for handle, future in zip(file_handles, file_results):
-            future.add_done_callback(base.publish_file(handle))
+        handler.update(format_results, file_results)
 
     # TODO: magic for pstricks?
 
-    # TODO: line magic for a single line of TikZ code? or combine with below?
-
+    @base.ma.magic_arguments()
+    @base.arguments_display_assign_save
+    @arguments_preamble
     @magic.line_cell_magic
     def call_latex_tikzpicture(self, line, cell=None):
         """Call LaTeX using a *tikzpicture* environment.
 
         """
-        if cell is None:
-            # TODO: load code from .tex file
-            # TODO: if no file is given, use "line" as TikZ command?
-            return line
-
-        # TODO: use cell text, file input is not allowed (except for preamble)
-
-        # TODO: get only the necessary formats
-        #formats = ['svg']
-        formats = [['svg', 'pdf', 'png']]
-
-        displays = []
-        for format in formats:
-            displays.append(base.publish_empty(format))
-
-        flat_formats, sizes = base.flatten_formats(formats)
-
+        args = base.parse_arguments(self.call_latex_tikzpicture, line, cell)
+        source = base.check_source(args, cell)
+        handler = base.Handler(args, self.caller.scheduler)
         format_results, file_results = self.caller.call_tikzpicture(
-            cell, flat_formats, files=(), blocking=False)
-
-        format_results = base.unflatten_results(format_results, sizes,
-                                                self.caller)
-
-        # TODO: store LaTeX content of environment (with Jinja replacements)
-
-        for disp, output, format in zip(displays, format_results, formats):
-            output.add_done_callback(base.publish_data(disp, format))
-
-        # TODO: return something? probably for debugging?
+            source, handler.formats, handler.files, blocking=False)
+        handler.update(format_results, file_results)
