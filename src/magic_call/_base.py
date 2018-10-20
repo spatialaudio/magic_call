@@ -31,11 +31,11 @@ class Caller:
         self.scheduler = _scheduler.Scheduler(max_workers)
 
     def call(self, source, formats=None, files=None, *, blocking=True):
-        # TODO: if both formats and files is None -> return None
-
         chains = self._formats2chains(formats, files)
-        # TODO: check if source is already bytes
-        source_bytes = source.encode()
+        if isinstance(source, bytes):
+            source_bytes = source
+        else:
+            source_bytes = source.encode()
 
         # TODO: make grouping more obvious? factor out?
         # Group by first format in chain (i.e. the "creator" format)
@@ -144,7 +144,7 @@ class Caller:
         task_read = None
 
         # Group by first suffix in chain (for non-empty chains)
-        groups = {}
+        groups = _collections.defaultdict(list)
         for i, chain in enumerate(chains):
             if not chain:
                 if not task_read:
@@ -163,7 +163,7 @@ class Caller:
             if len(chain) == 1 and isinstance(chain[0], _Path):
                 target_files.append(chain[0])
                 continue
-            groups.setdefault(chain[0], []).append((i, chain[1:]))
+            groups[chain[0]].append((i, chain[1:]))
 
         tasks = []
         indices = []
@@ -284,6 +284,7 @@ class Caller:
 
 
 def _create_temporary_directory(task):
+    # TODO: cleanup() in the end?
     # NB: must be kept alive!
     task.tempdir = _tempfile.TemporaryDirectory(prefix=_BASENAME + '-')
     task.path = _Path(task.tempdir.name)

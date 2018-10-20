@@ -13,6 +13,10 @@ extensions = [
 autoclass_content = 'init'
 autodoc_member_order = 'bysource'
 
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3/', None),
+}
+
 authors = 'Matthias Geier'
 project = 'magic_call'
 copyright = '2018, ' + authors

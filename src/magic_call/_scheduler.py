@@ -14,9 +14,9 @@ class Scheduler:
     def create_task(self, function, *args, **kwargs):
         """
 
-        *args are passed to function ("task" is passed as first argument)
+        ``*args`` are passed to function ("task" is passed as first argument)
 
-        **kwargs are assigned as attributes to "task"
+        ``**kwargs`` are assigned as attributes to "task"
 
         """
         # NB: Using circular dependencies will cause deadlock!
