@@ -4,7 +4,7 @@ import urllib
 
 from IPython.core.error import UsageError
 import IPython.core.magic_arguments as ma
-from IPython.display import publish_display_data, display
+from IPython.display import display
 
 # TODO: support output formats txt and tex?
 # TODO: support jpe?g
@@ -94,33 +94,33 @@ def unflatten_results(results, nested_lengths, scheduler):
     """
 
 
-# TODO: does this need to be public?
-def publish(formats, results):
-    # TODO: somehow use a IPython.utils.capture.RichOutput?
-    display_data = {}
-    results, = results
-    formats, = formats
-    for format, result in zip(formats, results.result()):
-        display_data[_MIME_TYPES[format]] = result
-
-    # TODO: latex has higher priority than png!
-    # TODO: is a plain text representation necessary?
-    #'text/plain': 'text',
-    #'text/latex': 'TODO: much latex code!',
-    # TODO: DOCs: mention that jpeg is not available?
-    #'image/jpeg': '',
-
-    # https://github.com/jupyterlab/jupyterlab/pull/3135
-    # https://github.com/jupyterlab/jupyterlab/issues/3038
-
-    # TODO: metadata?
-    # "metadata" : {
-    #   "image/png": {
-    #     "width": 640,
-    #     "height": 480,
-    #   },
-    # },
-    return publish_display_data(display_data)
+## TODO: does this need to be public?
+#def publish(formats, results):
+#    # TODO: somehow use a IPython.utils.capture.RichOutput?
+#    display_data = {}
+#    results, = results
+#    formats, = formats
+#    for format, result in zip(formats, results.result()):
+#        display_data[_MIME_TYPES[format]] = result
+#
+#    # TODO: latex has higher priority than png!
+#    # TODO: is a plain text representation necessary?
+#    #'text/plain': 'text',
+#    #'text/latex': 'TODO: much latex code!',
+#    # TODO: DOCs: mention that jpeg is not available?
+#    #'image/jpeg': '',
+#
+#    # https://github.com/jupyterlab/jupyterlab/pull/3135
+#    # https://github.com/jupyterlab/jupyterlab/issues/3038
+#
+#    # TODO: metadata?
+#    # "metadata" : {
+#    #   "image/png": {
+#    #     "width": 640,
+#    #     "height": 480,
+#    #   },
+#    # },
+#    return publish_display_data(display_data)
 
 
 def publish_empty(formats):
