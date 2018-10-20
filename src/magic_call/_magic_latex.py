@@ -84,6 +84,8 @@ class CallLatex(magic.Magics):
         super(CallLatex, self).__init__(**kwargs)
         # TODO: get settings and pass them on?
         self.caller = latex.Caller()
+        # TODO: better heuristics to check if running interactively:
+        self.blocking = not self.shell.get_parent()['content']['allow_stdin']
 
     @magic.line_cell_magic
     def call_latex_preamble(self, line, cell=None):
