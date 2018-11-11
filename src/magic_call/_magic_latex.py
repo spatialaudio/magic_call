@@ -87,6 +87,8 @@ class CallLatex(magic.Magics):
         # TODO: better heuristics to check if running interactively:
         self.blocking = not self.shell.get_parent()['content']['allow_stdin']
 
+    # TODO: %%tikzset magic?
+
     @magic.line_cell_magic
     def call_latex_preamble(self, line, cell=None):
 
@@ -180,6 +182,8 @@ class CallLatex(magic.Magics):
         handler.update(format_results, file_results)
 
     # TODO: magic for pstricks?
+
+    # TODO: %%call_latex_pgfplot
 
     @base.ma.magic_arguments()
     @base.arguments_display_assign_save
