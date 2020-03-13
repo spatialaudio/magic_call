@@ -73,6 +73,7 @@ http://blockdiag.com/en/
 
 https://bitbucket.org/vladf/ipython-diags
 
+https://github.com/innovationOUtside/ipython_magic_blockdiag
 
 SoX?
 ^^^^
