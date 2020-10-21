@@ -15,8 +15,8 @@ setup(
     python_requires='>=3',
     author='Matthias Geier',
     author_email='Matthias.Geier@gmail.com',
-    description='Python package for passing some text to a chain of external '
-                'programs and getting the result(s) back',
+    description='Pass some text to a chain of external '
+                'programs and get the result(s) back',
     long_description=open('README.rst').read(),
     license='MIT',
     keywords='IPython magic LaTeX'.split(),

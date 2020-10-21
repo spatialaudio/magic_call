@@ -16,14 +16,17 @@ _BASENAME = 'magic_call'
 
 class Caller:
 
-    # TODO: DOC: the "best" chain is not the one with the fewest stages,
-    #       but the one that needs to go least far in the list of commands.
-    # TODO: DOC: Explicit tool chain can be specified: ps.pdf.png, dvi.png
-    # TODO: DOC: How to decide between pdf.svg and dvi.svg?
     def __init__(self, commands=(), *, env=None, max_workers=None):
         """
 
         The order of *commands* matters!
+
+        The "best" chain is not the one with the fewest stages,
+        but the one that needs to go least far in the list of commands.
+
+        Explicit tool chain can be specified: ``ps.pdf.png``, ``dvi.png``
+
+        TODO: How to decide between ``pdf.svg`` and ``dvi.svg``?
 
         .. seealso::
 

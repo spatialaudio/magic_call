@@ -22,10 +22,7 @@ _MIME_TYPES = {
 # text/latex
 # application/json
 # application/javascript
-# application/pdf
-# image/png
 # image/jpeg
-# image/svg+xml
 
 
 class Handler:
