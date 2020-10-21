@@ -50,22 +50,34 @@ class Handler:
             self.formats.extend(item)
             self._nested_lengths.append(len(item))
 
-    def update(self, format_results, file_results):
+    def update(self, format_results, file_results, blocking=True):
         format_results = format_results.copy()
         nested_results = []
         for length in self._nested_lengths:
-            task = self.scheduler.create_task(
-                    lambda _, futures: [f.result() for f in futures],
-                    format_results[:length])
-            nested_results.append(task.future)
+            chunk = format_results[:length]
+            if blocking:
+                nested_results.append(chunk)
+            else:
+                task = self.scheduler.create_task(
+                        lambda _, futures: [f.result() for f in futures],
+                        chunk)
+                nested_results.append(task.future)
             format_results = format_results[length:]
 
-        for handle, future, format in zip(self._format_handles, nested_results,
-                                          self._nested_formats):
-            future.add_done_callback(publish_data(handle, format))
+        for handle, results, formats in zip(self._format_handles,
+                                           nested_results,
+                                           self._nested_formats):
+            if blocking:
+                publish_data(handle, formats, results)
+            else:
+                results.add_done_callback(
+                    publish_data_callback(handle, formats))
 
-        for handle, future in zip(self._file_handles, file_results):
-            future.add_done_callback(publish_file(handle))
+        for handle, result in zip(self._file_handles, file_results):
+            if blocking:
+                publish_file(handle, result)
+            else:
+                result.add_done_callback(publish_file_callback(handle))
 
         # TODO: assign
 
@@ -128,16 +140,20 @@ def publish_empty(formats):
     return display(data, raw=True, display_id=True)
 
 
-def publish_data(disp, format):
-    assert isinstance(format, (list, tuple))
+def publish_data(disp, formats, output):
+    assert isinstance(output, (list, tuple))
+    data = {}
+    for f, o in zip(formats, output):
+        data[_MIME_TYPES[f]] = o
+    disp.update(data, raw=True)
+
+
+def publish_data_callback(disp, formats):
+    assert isinstance(formats, (list, tuple))
 
     def callback(future):
         output = future.result()
-        assert isinstance(output, (list, tuple))
-        data = {}
-        for f, o in zip(format, output):
-            data[_MIME_TYPES[f]] = o
-        disp.update(data, raw=True)
+        publish_data(disp, formats, output)
 
     return callback
 
@@ -150,16 +166,20 @@ def publish_creating_file(name):
     return display(message, raw=True, display_id=True)
 
 
-def publish_file(disp):
+def publish_file(disp, result):
+    name = str(result)
+    message = {
+        'text/plain': 'created file: {!r}'.format(name),
+        'text/markdown': 'created file: [{}]({})'.format(
+            name, urllib.parse.quote(name)),
+    }
+    disp.update(message, raw=True)
+
+
+def publish_file_callback(disp):
 
     def callback(future):
-        name = str(future.result())
-        message = {
-            'text/plain': 'created file: {!r}'.format(name),
-            'text/markdown': 'created file: [{}]({})'.format(
-                name, urllib.parse.quote(name)),
-        }
-        disp.update(message, raw=True)
+        publish_file(disp, future.result())
 
     return callback
 

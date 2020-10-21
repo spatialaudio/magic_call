@@ -80,12 +80,15 @@ class CallLatex(magic.Magics):
     # TODO: store mime types in instance: defaults from InlineBackend, how to
     #       override?
 
+    # TODO: create base class for code re-use with other magics
+
     def __init__(self, **kwargs):
         super(CallLatex, self).__init__(**kwargs)
         # TODO: get settings and pass them on?
         self.caller = latex.Caller()
         # TODO: better heuristics to check if running interactively:
         self.blocking = not self.shell.get_parent()['content']['allow_stdin']
+        print('blocking', self.blocking)
 
     # TODO: %%tikzset magic?
 
@@ -143,8 +146,8 @@ class CallLatex(magic.Magics):
         source = base.check_source(args, cell)
         handler = base.Handler(args, self.caller.scheduler)
         results, file_results = self.caller.call(
-                source, handler.formats, handler.files, blocking=False)
-        handler.update(results, file_results)
+                source, handler.formats, handler.files, blocking=self.blocking)
+        handler.update(results, file_results, blocking=self.blocking)
 
     @base.ma.magic_arguments()
     @base.arguments_display_assign_save
@@ -170,7 +173,7 @@ class CallLatex(magic.Magics):
         # TODO: intercept .tex data/files
 
         format_results, file_results = self.caller.call_standalone(
-            source, handler.formats, handler.files, blocking=False)
+            source, handler.formats, handler.files, blocking=self.blocking)
 
         # TODO: add .tex content
 
@@ -179,7 +182,7 @@ class CallLatex(magic.Magics):
         # TODO: txt: text/plain
         # TODO: disallow txt as file suffix?
 
-        handler.update(format_results, file_results)
+        handler.update(format_results, file_results, blocking=self.blocking)
 
     # TODO: magic for pstricks?
 
@@ -197,5 +200,5 @@ class CallLatex(magic.Magics):
         source = base.check_source(args, cell)
         handler = base.Handler(args, self.caller.scheduler)
         format_results, file_results = self.caller.call_tikzpicture(
-            source, handler.formats, handler.files, blocking=False)
-        handler.update(format_results, file_results)
+            source, handler.formats, handler.files, blocking=self.blocking)
+        handler.update(format_results, file_results, blocking=self.blocking)
