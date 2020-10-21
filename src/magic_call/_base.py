@@ -25,6 +25,12 @@ class Caller:
 
         The order of *commands* matters!
 
+        .. seealso::
+
+            `example notebook`_
+
+            .. _example notebook: caller.ipynb
+
         """
         self.commands = list(commands)
         self.env = env

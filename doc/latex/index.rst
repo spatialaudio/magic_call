@@ -1,0 +1,6 @@
+LaTeX Support
+=============
+
+.. toctree::
+
+    api

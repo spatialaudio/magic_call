@@ -1,0 +1,6 @@
+IPython Magics
+==============
+
+.. toctree::
+
+    api

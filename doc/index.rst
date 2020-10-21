@@ -5,4 +5,6 @@ https://github.com/spatialaudio/magic_call
 
 .. toctree::
 
-    api
+    base/index
+    latex/index
+    magic/index

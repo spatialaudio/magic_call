@@ -1,5 +1,5 @@
-Magics
-======
+API
+===
 
 .. automodule:: magic_call._magic_base
     :members:

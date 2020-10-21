@@ -1,5 +1,5 @@
-Base Module
-===========
+API
+===
 
 .. automodule:: magic_call
     :members: Caller

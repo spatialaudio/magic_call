@@ -1,5 +1,5 @@
-LaTeX Module
-============
+API
+===
 
 .. automodule:: magic_call.latex
     :members:
