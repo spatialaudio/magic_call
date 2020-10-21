@@ -34,7 +34,7 @@ DEFAULT_COMMANDS = [
         '--output={}',
     ])),
     ('pdf', 'latex --halt-on-error --output-format=pdf --jobname={}'),
-    ('pdf2png', 'convert {} {}'),
+    ('pdf2png', 'convert -density 96 {} {}'),
     # TODO: pdf2svg
     #('pdf2svg', 'pdf2svg {} {}'),
     # TODO dvipng
