@@ -12,13 +12,14 @@ setup(
     version=__version__,
     package_dir={'': 'src'},
     packages=['magic_call'],
+    python_requires='>=3',
     author='Matthias Geier',
     author_email='Matthias.Geier@gmail.com',
     description='Python package for passing some text to a chain of external '
                 'programs and getting the result(s) back',
     long_description=open('README.rst').read(),
     license='MIT',
-    keywords='IPython LaTeX'.split(),
+    keywords='IPython magic LaTeX'.split(),
     url='https://magic_call.readthedocs.io/',
     platforms='any',
     classifiers=[
