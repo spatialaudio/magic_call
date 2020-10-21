@@ -19,7 +19,6 @@ intersphinx_mapping = {
 
 authors = 'Matthias Geier'
 project = 'magic_call'
-copyright = '2018, ' + authors
 
 try:
     today = check_output(['git', 'show', '-s', '--format=%ad', '--date=short'])
@@ -40,6 +39,7 @@ html_theme_options = {
 html_title = project + ', version ' + release
 html_domain_indices = False
 html_show_sourcelink = True
+html_show_copyright = False
 
 latex_elements = {
     'papersize': 'a4paper',
