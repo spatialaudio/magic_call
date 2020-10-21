@@ -1,0 +1,3 @@
+insipid-sphinx-theme
+sphinx-last-updated-by-git
+nbsphinx
