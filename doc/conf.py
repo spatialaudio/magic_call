@@ -1,13 +1,10 @@
-import os
 from subprocess import check_output
-import sys
-
-sys.path.insert(0, os.path.abspath('../src'))
 
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
+    'sphinx_last_updated_by_git',
 ]
 
 autoclass_content = 'init'
@@ -29,17 +26,14 @@ except Exception:
     today = '<unknown date>'
     release = '<unknown>'
 
-master_doc = 'index'
 default_role = 'any'
 
-html_theme = 'sphinx_rtd_theme'
-html_theme_options = {
-    'collapse_navigation': False,
-}
+html_theme = 'insipid'
 html_title = project + ', version ' + release
+html_add_permalinks = '\N{SECTION SIGN}'
 html_domain_indices = False
-html_show_sourcelink = True
 html_show_copyright = False
+html_copy_source = False
 
 latex_elements = {
     'papersize': 'a4paper',
