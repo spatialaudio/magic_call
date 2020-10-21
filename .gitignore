@@ -1,3 +1,4 @@
 .ipynb_checkpoints/
 /src/magic_call.egg-info/
 /src/magic_call/__pycache__/
+/doc/latex/caller_output*
