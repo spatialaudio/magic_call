@@ -5,3 +5,4 @@ LaTeX Support
 
     caller
     api
+    magic/index

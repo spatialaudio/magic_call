@@ -7,5 +7,4 @@ https://github.com/spatialaudio/magic_call
 
     base/index
     latex/index
-    magic/index
     alternatives
