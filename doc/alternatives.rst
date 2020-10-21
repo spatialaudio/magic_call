@@ -69,9 +69,9 @@ plasTeX
     as well as a way to simply dump the document to a generic form of XML.
     Other renderers can be added as well and are planned for future releases.
 
-http://tiarno.github.io/plastex/
+http://plastex.github.io/plastex/
 
-https://github.com/tiarno/plastex
+https://github.com/plastex/plastex
 
 
 PyLaTeX
