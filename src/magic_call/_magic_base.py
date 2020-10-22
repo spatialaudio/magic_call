@@ -3,7 +3,7 @@ import shlex
 import urllib
 
 from IPython.core.error import UsageError
-import IPython.core.magic_arguments as ma
+from IPython.core.magic_arguments import argument, magic_arguments
 from IPython.display import display
 
 # TODO: support output formats txt and tex?
@@ -185,7 +185,7 @@ def publish_file_callback(disp):
 
 
 def arguments_display_assign_save(func):
-    func = ma.argument(
+    func = argument(
         '--save', metavar='FILENAME', action='append', default=[],
         help=''
         'Save the result to the given file name. '
@@ -193,7 +193,7 @@ def arguments_display_assign_save(func):
         'This can be used repeatedly to save multiple files. '
         'If a file with the same name already exists, it is overwritten! '
     )(func)
-    func = ma.argument(
+    func = argument(
         '--assign', nargs=2, action='append', default=[],
         metavar=('FORMAT', 'VARIABLE'),
         help=''
@@ -203,12 +203,12 @@ def arguments_display_assign_save(func):
         'Implies --no-display '
         '(if no --display option is used at the same time). '
     )(func)
-    func = ma.argument(
+    func = argument(
         '-n', '--no-display', action='store_true',
         help=''
         "Don't display anything. "
     )(func)
-    func = ma.argument(
+    func = argument(
         '-d', '--display', metavar='FORMAT', action='append', default=[],
         help=''
         'Select format(s) to display. '
@@ -217,7 +217,7 @@ def arguments_display_assign_save(func):
         'Use --no-display to display nothing. '
         'TODO: Explain semicolon, comma, dot.'
     )(func)
-    func = ma.argument(
+    func = argument(
         'input_file', metavar='FILENAME', nargs='?',
         help=''
         'Load source text from the given file. '
@@ -236,13 +236,12 @@ def parse_arguments(func, line, cell=None):
 def check_source(args, cell):
     if cell is None:
         if not args.input_file:
-            raise UsageError(
-                    'Positional argument is required in line magic')
+            raise UsageError('Positional argument is required in line magic')
         cell = pathlib.Path(args.input_file).read_text()
     else:
         if args.input_file:
             raise UsageError(
-                    'Positional argument is not allowed in cell magic')
+                'Positional argument is not allowed in cell magic')
     return cell
 
 

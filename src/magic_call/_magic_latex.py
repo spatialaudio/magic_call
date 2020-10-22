@@ -55,7 +55,7 @@ from . import _magic_base as base
 
 
 def arguments_preamble(func):
-    func = base.ma.argument(
+    func = base.argument(
         '--preamble', metavar='FILENAME', action='append', default=[],
         help=
         'Load a file to be used as part of the preamble. '
@@ -88,7 +88,6 @@ class CallLatex(magic.Magics):
         self.caller = latex.Caller()
         # TODO: better heuristics to check if running interactively:
         self.blocking = not self.shell.get_parent()['content']['allow_stdin']
-        print('blocking', self.blocking)
 
     # TODO: %%tikzset magic?
 
@@ -134,7 +133,7 @@ class CallLatex(magic.Magics):
 
     # TODO: non-option arguments are added to preamble?
 
-    @base.ma.magic_arguments()
+    @base.magic_arguments()
     @base.arguments_display_assign_save
     @arguments_preamble
     @magic.line_cell_magic
@@ -149,7 +148,7 @@ class CallLatex(magic.Magics):
                 source, handler.formats, handler.files, blocking=self.blocking)
         handler.update(results, file_results, blocking=self.blocking)
 
-    @base.ma.magic_arguments()
+    @base.magic_arguments()
     @base.arguments_display_assign_save
     @arguments_preamble
     @magic.line_cell_magic
@@ -188,7 +187,7 @@ class CallLatex(magic.Magics):
 
     # TODO: %%call_latex_pgfplot
 
-    @base.ma.magic_arguments()
+    @base.magic_arguments()
     @base.arguments_display_assign_save
     @arguments_preamble
     @magic.line_cell_magic
