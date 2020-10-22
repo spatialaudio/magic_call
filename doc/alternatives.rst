@@ -13,6 +13,20 @@ please add them with a PR_ or create an issue_.
 .. _issue: https://github.com/spatialaudio/magic_call/issues
 
 
+``diagmagic.py``
+----------------
+
+    Magics for using blockdiag.com modules with IPython Notebook
+    The module provides magics:
+    ``%%actdiag``, ``%%blockdiag``, ``%%nwdiag``, ``%%seqdiag``
+
+* https://gist.github.com/dorneanu/5e08bbff00921ae6055c
+* https://gist.github.com/psychemedia/3abf1c671b39666860a8
+* https://gist.github.com/nilp0inter/7acfa98ef0302cebe1a7
+* https://gist.github.com/sherdim/f0293bc7b022b852185b
+
+Related to ``https://bitbucket.org/vladf/ipython-diags`` (dead link)?
+
 Graphviz
 --------
 
@@ -25,6 +39,26 @@ Graphviz
 https://graphviz.readthedocs.io/
 
 
+IPlantUML
+---------
+
+    A Python package which defines a PlantUML cell magic for IPython. 
+
+https://github.com/jbn/IPlantUML
+
+
+ipy_magics
+----------
+
+    The enclosed Python 3 modules define a number of “cell magics” for use
+    in an IPython notebook.
+    ... ``%%csound`` [Csound]
+    ... ``%%ps`` [PostScript]
+    ... ``%%rman`` [RenderMan]
+
+https://github.com/ldo/ipy_magics
+
+
 ipython-asymptote
 -----------------
 
@@ -34,12 +68,53 @@ ipython-asymptote
 https://github.com/jrjohansson/ipython-asymptote
 
 
+ipython-hierarchymagic 
+-----------------------
+
+    ``%hierarchy`` and ``%%dot`` magics for IPython 
+
+https://github.com/tkf/ipython-hierarchymagic
+
+
 ``IPython.lib.latextools``
 --------------------------
 
     Tools for handling LaTeX.
 
 https://ipython.readthedocs.io/en/stable/api/generated/IPython.lib.latextools.html
+
+
+ipython-magic
+-------------
+
+    Graphviz Magics
+
+https://github.com/cjdrake/ipython-magic
+
+
+ipython-tikzmagic
+-----------------
+
+    IPython magics for generating figures with TikZ. You can select the output
+    format as svg, png or jpg, define the image size, specify a scale factor,
+    load TikZ packages, and save to external files.
+
+https://github.com/mkrphys/ipython-tikzmagic
+
+
+jupyter_abc
+-----------
+
+    This extension makes it easy to render ABC_ markup as graphical music
+    notation in a Jupyter notebook.
+
+    For rendering, the extension uses the abcjs_ Javascript library by Paul
+    Rosen and Gregory Dyke.
+
+    .. _ABC: http://abcnotation.com/
+    .. _abcjs: https://abcjs.net/
+
+https://github.com/akaihola/jupyter_abc
 
 
 ``latex``
