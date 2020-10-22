@@ -80,6 +80,7 @@ class Handler:
                 result.add_done_callback(publish_file_callback(handle))
 
         # TODO: assign
+        #get_ipython().push({'myvar': value})
 
 
 def flatten_formats(formats):
@@ -202,6 +203,7 @@ def arguments_display_assign_save(func):
         # TODO:
         'Implies --no-display '
         '(if no --display option is used at the same time). '
+        # TODO: always blocking!
     )(func)
     func = argument(
         '-n', '--no-display', action='store_true',
