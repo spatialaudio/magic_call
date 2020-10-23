@@ -1,7 +1,7 @@
 Alternatives
 ============
 
-``magic_call`` is not the only (and definitely not the newest) kid on the block.
+``magic_call`` is not the only Python library to execute external commands.
 There are a lot of tools that do similar things.
 Most, however, are less generic than ``magic_call``.
 

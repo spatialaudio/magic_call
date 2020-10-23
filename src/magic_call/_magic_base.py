@@ -29,12 +29,18 @@ class Handler:
 
     def __init__(self, args, scheduler):
         self.scheduler = scheduler
-        self._nested_formats, assign_formats, self.files = \
+        self._nested_formats, assign_items, self.files = \
             check_display_assign_save(args)
 
         self._format_handles = []
-        for format in self._nested_formats:
-            self._format_handles.append(publish_empty(format))
+        for formats in self._nested_formats:
+            self._format_handles.append(publish_empty(formats))
+
+        # Add formats to assign after publishing empty slots
+        self._assign_names = []
+        if assign_items:
+            assign_formats, self._assign_names = zip(*assign_items)
+            self._nested_formats.append(assign_formats)
 
         # TODO writing vs. overwriting?
 
@@ -64,6 +70,9 @@ class Handler:
                 nested_results.append(task.future)
             format_results = format_results[length:]
 
+        if self._assign_names:
+            assign_data = nested_results.pop()
+
         for handle, results, formats in zip(self._format_handles,
                                            nested_results,
                                            self._nested_formats):
@@ -79,8 +88,11 @@ class Handler:
             else:
                 result.add_done_callback(publish_file_callback(handle))
 
-        # TODO: assign
-        #get_ipython().push({'myvar': value})
+        if self._assign_names:
+            if not blocking:
+                # We block anyway because the next cell may need the result
+                assign_data = assign_data.result()
+            get_ipython().push(dict(zip(self._assign_names, assign_data)))
 
 
 def flatten_formats(formats):
@@ -260,12 +272,11 @@ def check_display_assign_save(args):
         for disp in args.display:
             for semicolon_part in disp.split(';'):
                 display_formats.append(semicolon_part.split(','))
-    else:
+    elif not args.no_display:
         # TODO: get default formats from config
         display_formats = [['png']]
 
-    # TODO: error if --no-display and no --assign and no --save
+    if args.no_display and not args.save and not args.assign:
+        raise UsageError('no output requested, use --save or --assign')
 
-    assign_formats = []  # TODO
-
-    return display_formats, assign_formats, args.save
+    return display_formats, args.assign, args.save
