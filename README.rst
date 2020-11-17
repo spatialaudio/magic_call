@@ -85,3 +85,12 @@ SoX?
 DTMF example: https://cloudacm.com/?p=2976
 
 csound magic already exists: https://github.com/ldo/ipy_magics
+
+PIC
+^^^
+
+https://en.wikipedia.org/wiki/Pic_language
+
+``pic``, ``dpic``, ``tpic2pdftex``, ...
+
+https://pikchr.org/
