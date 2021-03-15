@@ -94,3 +94,9 @@ https://en.wikipedia.org/wiki/Pic_language
 ``pic``, ``dpic``, ``tpic2pdftex``, ...
 
 https://pikchr.org/
+
+Lilypond
+^^^^^^^^
+
+https://sphinx-notes.github.io/lilypond/
+(including audio output generated with TiMidity++)
