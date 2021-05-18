@@ -8,9 +8,6 @@ extensions = [
     'sphinx_last_updated_by_git',
 ]
 
-# temporary:
-nbsphinx_allow_errors = True
-
 autoclass_content = 'init'
 autodoc_member_order = 'bysource'
 
