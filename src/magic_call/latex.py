@@ -36,8 +36,8 @@ DEFAULT_COMMANDS = [
     ('pdf', 'latex --halt-on-error --output-format=pdf --jobname={}'),
     # pdftoppm: Debian/Ubuntu package: poppler-utils; conda-forge: poppler
     # Add ANACONDA_ROOT/Library/bin to PATH
-    #('pdf2png', 'pdftoppm -png -singlefile -r 96 {0} {0}'),
-    ('pdf2png', 'convert -density 96 {} {}'),
+    ('pdf2png', 'pdftoppm -png -singlefile -r 96 {0} {0}'),
+    #('pdf2png', 'convert -density 96 {} {}'),
     # TODO: pdf2svg
     #('pdf2svg', 'pdf2svg {} {}'),
     ('dvi2png', 'dvipng -D 96 {} -o {}'),
