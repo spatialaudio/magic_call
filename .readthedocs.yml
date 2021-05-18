@@ -1,6 +1,10 @@
 version: 2
 build:
   image: latest
+  apt_packages:
+    # for pdftoppm:
+    - poppler-utils
+
 python:
   version: 3
   install:
