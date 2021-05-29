@@ -42,7 +42,7 @@ https://graphviz.readthedocs.io/
 IPlantUML
 ---------
 
-    A Python package which defines a PlantUML cell magic for IPython. 
+    A Python package which defines a PlantUML cell magic for IPython.
 
 https://github.com/jbn/IPlantUML
 
@@ -68,10 +68,10 @@ ipython-asymptote
 https://github.com/jrjohansson/ipython-asymptote
 
 
-ipython-hierarchymagic 
------------------------
+ipython-hierarchymagic
+----------------------
 
-    ``%hierarchy`` and ``%%dot`` magics for IPython 
+    ``%hierarchy`` and ``%%dot`` magics for IPython
 
 https://github.com/tkf/ipython-hierarchymagic
 
@@ -100,6 +100,14 @@ ipython-tikzmagic
     load TikZ packages, and save to external files.
 
 https://github.com/mkrphys/ipython-tikzmagic
+
+
+itikz
+-----
+
+    Cell magic for PGF/TikZ-to-SVG rendering in Jupyter
+
+https://github.com/jbn/itikz
 
 
 jupyter_abc

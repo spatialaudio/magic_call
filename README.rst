@@ -10,12 +10,6 @@ For Python version 3.5 and newer.
 
 Includes "magic" functions for IPython, but it can also be used without IPython.
 
-https://github.com/mkrphys/ipython-tikzmagic/
-
-https://github.com/robjstan/tikzmagic
-
-https://github.com/jbn/itikz
-
 TODO: add to https://github.com/ipython/ipython/wiki/Extensions-Index
 
 What if a program generates two different things at once?
