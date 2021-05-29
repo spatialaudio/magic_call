@@ -1,2 +1,3 @@
 graphviz
+poppler-utils
 texlive-latex-extra

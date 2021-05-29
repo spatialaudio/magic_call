@@ -2,6 +2,9 @@
 
 set -e
 
+# If you want to use magic_call in your own project,
+# you probably don't need this:
 python3 -m pip install -e .
+# Instead, you should add magic-call to requirements.txt
 
 # add further shell commands here
