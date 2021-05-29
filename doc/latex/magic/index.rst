@@ -6,3 +6,4 @@ IPython Magics
     formats
     assign
     preamble
+    tikz
