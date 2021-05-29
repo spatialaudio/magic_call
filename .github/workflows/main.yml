@@ -12,13 +12,12 @@ jobs:
       - name: Install Ubuntu packages
         run: |
           PACKAGES=(
+            dvisvgm
             graphviz
             pandoc
             poppler-utils
-            texlive-binaries
             texlive-latex-extra
           )
-          sudo apt-get update
           sudo apt-get install --no-install-recommends ${PACKAGES[@]}
       - name: Double-check dvisvgm
         run: dvisvgm --version
