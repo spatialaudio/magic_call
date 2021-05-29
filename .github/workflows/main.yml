@@ -15,10 +15,12 @@ jobs:
             graphviz
             pandoc
             poppler-utils
-            texlive-binaries
+            #texlive-binaries
             texlive-latex-extra
           )
           sudo apt-get install --no-install-recommends ${PACKAGES[@]}
+      - name: Double-check dvisvgm
+        run: dvisvgm --version
       - name: Set up Python
         uses: actions/setup-python@v1
         with:
