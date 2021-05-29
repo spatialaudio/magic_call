@@ -13,6 +13,7 @@ jobs:
         run: |
           PACKAGES=(
             graphviz
+            pandoc
             poppler-utils
             texlive-latex-extra
           )
