@@ -9,6 +9,14 @@ jobs:
       with:
         fetch-depth: 0
         submodules: true
+    - name: Install Ubuntu packages
+      run: |
+        PACKAGES=(
+          graphviz
+          poppler-utils
+          texlive-latex-extra
+        )
+        sudo apt-get install --no-install-recommends ${PACKAGES[@]}
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
