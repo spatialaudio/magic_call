@@ -15,7 +15,7 @@ jobs:
             graphviz
             pandoc
             poppler-utils
-            #texlive-binaries
+            texlive-binaries
             texlive-latex-extra
           )
           sudo apt-get update
