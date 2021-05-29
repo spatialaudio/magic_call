@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# add your commands here
+
+exec "$@"

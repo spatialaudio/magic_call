@@ -1,0 +1,10 @@
+This directory holds configuration files for https://mybinder.org/.
+
+The notebooks that comprise the documentation can be accessed with this link:
+https://mybinder.org/v2/gh/spatialaudio/magic_call/master?filepath=doc
+
+To check out a different version, just replace "master" with the desired
+branch/tag name or commit hash.
+
+To use JupyterLab, use:
+https://mybinder.org/v2/gh/spatialaudio/magic_call/master?urlpath=lab/tree/doc
