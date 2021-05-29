@@ -1,1 +1,2 @@
-texlive-latex-recommended
+graphviz
+texlive-latex-extra
