@@ -31,7 +31,7 @@ default_role = 'any'
 
 html_theme = 'insipid'
 html_title = project + ', version ' + release
-html_add_permalinks = '\N{SECTION SIGN}'
+html_permalinks_icon = '§'
 html_favicon = 'favicon.svg'
 html_domain_indices = False
 html_show_copyright = False
