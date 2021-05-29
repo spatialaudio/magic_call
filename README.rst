@@ -14,6 +14,8 @@ https://github.com/mkrphys/ipython-tikzmagic/
 
 https://github.com/robjstan/tikzmagic
 
+https://github.com/jbn/itikz
+
 TODO: add to https://github.com/ipython/ipython/wiki/Extensions-Index
 
 What if a program generates two different things at once?
