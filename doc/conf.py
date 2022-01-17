@@ -4,6 +4,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
+    'sphinx_search.extension',
 ]
 
 autoclass_content = 'init'
