@@ -96,3 +96,13 @@ Lilypond
 
 https://sphinx-notes.github.io/lilypond/
 (including audio output generated with TiMidity++)
+
+
+Mermaid
+^^^^^^^
+
+Using JavaScript, probably out of scope?
+
+https://mermaid-js.github.io/
+
+https://github.com/innovationOUtside/nb_js_diagrammers
